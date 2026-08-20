@@ -237,7 +237,7 @@ void DRIVER_CONNECT_TO_DATABASE(SQLHANDLE &env, SQLHANDLE &dbc, const std::strin
 }
 
 void CONNECT_TO_DATABASE(SQLHANDLE &env, SQLHANDLE &dbc) {
-	std::string dsn = "DuckDB";
+	std::string dsn = "Haybarn";
 
 	SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_ENV, nullptr, &env);
 	REQUIRE(ret == SQL_SUCCESS);
@@ -404,13 +404,13 @@ void WriteStringToFile(const std::string &file_path, const std::string &text) {
 
 UserOdbcIni::UserOdbcIni(std::vector<std::pair<std::string, std::string>> entries_in) : entries(std::move(entries_in)) {
 	for (auto &en : entries) {
-		SQLWritePrivateProfileString("DuckDB", en.first.c_str(), en.second.c_str(), "odbc.ini");
+		SQLWritePrivateProfileString("Haybarn", en.first.c_str(), en.second.c_str(), "odbc.ini");
 	}
 }
 
 UserOdbcIni::~UserOdbcIni() {
 	for (auto &en : entries) {
-		SQLWritePrivateProfileString("DuckDB", en.first.c_str(), "", "odbc.ini");
+		SQLWritePrivateProfileString("Haybarn", en.first.c_str(), "", "odbc.ini");
 	}
 }
 

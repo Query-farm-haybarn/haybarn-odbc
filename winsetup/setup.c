@@ -22,7 +22,7 @@
 #include <odbcinst.h>
 #include "resource.h"
 
-static char *driver_name = "DuckDB Driver";
+static char *driver_name = "Haybarn Driver";
 static HINSTANCE instance;
 
 static void ODBCLOG(const char *fmt, ...) {

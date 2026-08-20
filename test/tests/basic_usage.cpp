@@ -7,7 +7,7 @@ TEST_CASE("Basic ODBC usage", "[odbc]") {
 	SQLHANDLE env;
 	SQLHANDLE dbc;
 	SQLHANDLE stmt;
-	auto dsn = "DuckDB";
+	auto dsn = "Haybarn";
 
 	ret = SQLAllocHandle(SQL_HANDLE_ENV, nullptr, &env);
 	REQUIRE(ret == SQL_SUCCESS);

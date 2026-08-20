@@ -57,7 +57,7 @@ TEST_CASE("Test allowed_paths option", "[odbc]") {
 
 	// Connect to the database using SQLConnect
 	DRIVER_CONNECT_TO_DATABASE(env, dbc,
-	                           "Driver={DuckDB Driver};enable_external_access=false;"
+	                           "Driver={Haybarn Driver};enable_external_access=false;"
 	                           "allowed_paths=['" +
 	                               file_allowed_1 + "', '" + file_allowed_2 + "']");
 
@@ -95,7 +95,7 @@ TEST_CASE("Test allowed_directories option", "[odbc]") {
 
 	// Connect to the database using SQLConnect
 	DRIVER_CONNECT_TO_DATABASE(env, dbc,
-	                           "Driver={DuckDB Driver};enable_external_access=false;"
+	                           "Driver={Haybarn Driver};enable_external_access=false;"
 	                           "allowed_directories=['" +
 	                               dir_allowed_1 + "', '" + dir_allowed_2 + "']");
 

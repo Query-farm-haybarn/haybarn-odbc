@@ -110,7 +110,7 @@ class Program
 
     static void Main(string[] args)
     {
-        using (OdbcConnection conn = new OdbcConnection("Driver={DuckDB Driver}"))
+        using (OdbcConnection conn = new OdbcConnection("Driver={Haybarn Driver}"))
         {
             conn.Open();
             TestFieldTypes(conn);

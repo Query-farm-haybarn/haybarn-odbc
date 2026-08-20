@@ -14,12 +14,12 @@ config_file_path = os.path.expanduser("~/.odbcinst.ini")
 config = configparser.ConfigParser()
 config.read(config_file_path)
 
-# Update the 'DuckDB Driver' section with the new DRIVER_PATH
-if "DuckDB Driver" in config:
-    config["DuckDB Driver"]["Driver"] = DRIVER_PATH
+# Update the 'Haybarn Driver' section with the new DRIVER_PATH
+if "Haybarn Driver" in config:
+    config["Haybarn Driver"]["Driver"] = DRIVER_PATH
 else:
-    config.add_section("DuckDB Driver")
-    config["DuckDB Driver"]["Driver"] = DRIVER_PATH
+    config.add_section("Haybarn Driver")
+    config["Haybarn Driver"]["Driver"] = DRIVER_PATH
 
 # Write the modified configuration back to the .odbcinst.ini file
 with open(config_file_path, "w") as configfile:

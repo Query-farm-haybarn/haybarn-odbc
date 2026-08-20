@@ -2,13 +2,13 @@
 
 function Usage() {
     printf "Usage: $0 <level> [options]\n\n"
-    printf "Example: $0 -u -db ~/database_path -D ~/driver_path/libduckdb_odbc.so\n\n"
+    printf "Example: $0 -u -db ~/database_path -D ~/driver_path/libhaybarn_odbc.so\n\n"
     echo "Level:"
     echo "-s: System-level, using 'sudo' to configure DuckDB ODBC at the system-level, changing the files: /etc/odbc[inst].ini"
     echo "-u: User-level, configuring the DuckDB ODBC at the user-level, changing the files: ~/.odbc[inst].ini."
     printf "\nOptions:\n"
     echo "-db database_path>: the DuckDB database file path, the default is ':memory:' if not provided."
-    echo "-D driver_path: the driver file path (i.e., the path for libduckdb_odbc.so), the default is using the base script directory"
+    echo "-D driver_path: the driver file path (i.e., the path for libhaybarn_odbc.so), the default is using the base script directory"
     echo ""
     exit 1
 }
@@ -26,8 +26,8 @@ function ReadArgs() {
             "-D")
                 shift
                 DRIVER_PATH=$1
-                if grep -qv "libduckdb_odbc" <<< $DRIVER_PATH; then
-                    printf "\n****Driver path doesn't contain 'libduckdb_odbc'****\n\n"
+                if grep -qv "libhaybarn_odbc" <<< $DRIVER_PATH; then
+                    printf "\n****Driver path doesn't contain 'libhaybarn_odbc'****\n\n"
                     Usage
                 fi
                 shift
@@ -42,8 +42,8 @@ function ReadArgs() {
 
 function CreateODBCIniFile() {
 cat << EOF > $1
-[DuckDB]
-Driver = DuckDB Driver
+[Haybarn]
+Driver = Haybarn Driver
 Database=${DATABASE_PATH}
 EOF
 }
@@ -54,7 +54,7 @@ cat << EOF > $1
 Trace = yes
 TraceFile = /tmp/odbctrace
 
-[DuckDB Driver]
+[Haybarn Driver]
 Driver = ${DRIVER_PATH}
 EOF
 }
@@ -73,7 +73,7 @@ fi
 
 # global vars
 BASE_DIR=$(pwd)
-DRIVER_PATH=$BASE_DIR/libduckdb_odbc.so
+DRIVER_PATH=$BASE_DIR/libhaybarn_odbc.so
 DATABASE_PATH=":memory:"
 
 # Get the Database and Driver path from program arguments

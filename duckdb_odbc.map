@@ -1,4 +1,4 @@
-DUCKDB_ODBC {
+HAYBARN_ODBC {
   global:
     duckdb_adbc_init;
     duckdb_add_aggregate_function_to_set;

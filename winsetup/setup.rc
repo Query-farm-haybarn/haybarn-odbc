@@ -83,12 +83,12 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "DuckDB Engineering B.V."
-            VALUE "FileDescription", "DuckDB ODBC Setup DLL"
+            VALUE "CompanyName", "Query Farm LLC"
+            VALUE "FileDescription", "Haybarn ODBC Setup DLL"
             VALUE "FileVersion", sversion(11,44,0)
-            VALUE "InternalName", "duckdb_odbc_setup.dll"
-            VALUE "OriginalFilename", "duckdb_odbc_setup.dll"
-            VALUE "ProductName", "DuckDB"
+            VALUE "InternalName", "haybarn_odbc_setup.dll"
+            VALUE "OriginalFilename", "haybarn_odbc_setup.dll"
+            VALUE "ProductName", "Haybarn"
             VALUE "ProductVersion", sversion(11,44,0)
         END
     END
@@ -106,7 +106,7 @@ END
 
 IDD_SETUP_DIALOG DIALOGEX 0, 0, 210, 100
 STYLE DS_MODALFRAME | WS_CAPTION
-CAPTION "DuckDB Data Source Configuration"
+CAPTION "Haybarn Data Source Configuration"
 FONT 8, "MS Shell Dlg", 0, 0, 0x0
 BEGIN
     EDITTEXT        IDC_EDIT_DSN,75,40,128,14,ES_AUTOHSCROLL

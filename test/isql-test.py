@@ -25,8 +25,8 @@ def test_exception(command, input, stdout, stderr, errmsg):
 
 
 def test(cmd, out=None, err=None, extra_commands=None, input_file=None):
-    #########  isql         "DSN=DuckDB;Database=test.db"   -k    -b    -d'|'  /dev/null
-    command = [sys.argv[1], "DSN=DuckDB;Database=test.db", '-k', '-b', '-d|', '/dev/null']
+    #########  isql         "DSN=Haybarn;Database=test.db"   -k    -b    -d'|'  /dev/null
+    command = [sys.argv[1], "DSN=Haybarn;Database=test.db", '-k', '-b', '-d|', '/dev/null']
     if extra_parameter:
         command.append(extra_parameter)
 

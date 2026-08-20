@@ -19,7 +19,7 @@ def gen_str(length):
 
 
 def test_basic():
-    conn = pyodbc.connect('Driver={DuckDB Driver}')
+    conn = pyodbc.connect('Driver={Haybarn Driver}')
     cur = conn.cursor()
     cur.execute("CREATE TABLE tab1 (id INTEGER, st STRING)")
 
@@ -31,7 +31,7 @@ def test_basic():
 
 
 def test_unicode():
-    conn = pyodbc.connect('Driver={DuckDB Driver}')
+    conn = pyodbc.connect('Driver={Haybarn Driver}')
     cur = conn.cursor()
     cur.execute("CREATE TABLE tab1 (id INTEGER, st STRING)")
 
@@ -52,7 +52,7 @@ def test_unicode():
 
 
 def test_longdata():
-    conn = pyodbc.connect('Driver={DuckDB Driver}')
+    conn = pyodbc.connect('Driver={Haybarn Driver}')
     cur = conn.cursor()
     cur.execute("CREATE TABLE tab1 (id INTEGER, st STRING)")
 

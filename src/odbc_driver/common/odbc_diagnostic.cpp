@@ -201,7 +201,7 @@ void OdbcDiagnostic::FormatDiagnosticMessage(DiagRecord &diag_record, const std:
 	// [ vendor-identifier ][ ODBC-component-identifier ][ data-source-identifier ] data-source-supplied-text
 	auto error_msg = diag_record.GetOriginalMessage();
 
-	string msg = "ODBC_DuckDB";
+	string msg = "ODBC_Haybarn";
 	if (!data_source.empty()) {
 		msg += "->" + data_source;
 	}
