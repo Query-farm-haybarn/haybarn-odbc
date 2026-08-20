@@ -82,13 +82,34 @@ describe yields a `-dev` version. DuckDB's
 `ExtensionHelper::GetVersionDirectoryName()` then treats the build as a dev
 build and resolves extensions under the **git source id** instead of the
 version directory — which doesn't exist on `haybarn-extensions.query.farm`.
-Stamp the release version instead:
+
+**`local/vendoring/jemalloc_packaging.patch` must be applied to the engine
+checkout BEFORE running `vendor.py`, every time.** This is what upstream's
+(now-deleted, DuckDB-internal) `Vendor.yml` did in a throwaway `.git/duckdb`
+clone. Without it, `scripts/package_build.py`'s `third_party_includes()` /
+`third_party_sources()` don't include `third_party/jemalloc`, so the
+generated `CMakeLists.txt`'s `JEMALLOC_INCLUDE_DIRS`/`JEMALLOC_SRC_FILES` come
+out **empty** — the build then compiles `allocator_jemalloc.cpp` (via
+`-DDUCKDB_ENABLE_JEMALLOC`, unconditional on non-Windows) without its jemalloc
+headers on the include path, failing with `'duckdb/malloc_ncpus.h' file not
+found`. The patch also adds a missing `#include
+"duckdb/common/string_util.hpp"` to `allocator_jemalloc.cpp` itself. Apply it
+to a **disposable copy** of the engine checkout (a `git worktree`, not the
+shared `~/Development/haybarn/haybarn` checkout other forks rely on):
 
 ```sh
 cd ~/Development/haybarn/haybarn-odbc
 SHA=$(git -C ~/Development/haybarn/haybarn rev-parse --short=10 HEAD)
-OVERRIDE_GIT_DESCRIBE="v1.5.5-0-g${SHA}" python3 vendor.py --duckdb ~/Development/haybarn/haybarn
+TMP=$(mktemp -d)/haybarn-engine-jemalloc
+git -C ~/Development/haybarn/haybarn worktree add "$TMP" "$SHA"
+patch -p1 -d "$TMP" < local/vendoring/jemalloc_packaging.patch
+OVERRIDE_GIT_DESCRIBE="v1.5.5-0-g${SHA}" python3 vendor.py --duckdb "$TMP"
+git -C ~/Development/haybarn/haybarn worktree remove "$TMP" --force
 ```
+
+Verify `JEMALLOC_INCLUDE_DIRS`/`JEMALLOC_SRC_FILES` in the regenerated
+`CMakeLists.txt` are non-empty before committing — an empty-vars regression
+only surfaces as a build failure, not a vendor.py error.
 
 The `-0-` (zero commits since the tag) is what makes the version stamp clean
 (`v1.5.5`, not `v1.5.6-devN`) while `DUCKDB_SOURCE_ID` still records the real
