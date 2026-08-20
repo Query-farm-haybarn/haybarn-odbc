@@ -67,7 +67,7 @@ set(DUCKDB_INCLUDE_DIRS
   src/duckdb/third_party/zstd/include)
 
 set(JEMALLOC_INCLUDE_DIRS
-  src/duckdb/third_party/jemalloc/include)
+  )
 
 set(DUCKDB_DEFINITIONS
   -DDUCKDB_EXTENSION_CORE_FUNCTIONS_LINKED
@@ -150,6 +150,7 @@ set(DUCKDB_SRC_FILES
   src/duckdb/src/function/table/version/pragma_version.cpp
   src/duckdb/src/function/variant/variant_shredding.cpp
   src/duckdb/src/main/extension/extension_alias.cpp
+  src/duckdb/src/main/extension/extension_discovery.cpp
   src/duckdb/src/main/extension/extension_helper.cpp
   src/duckdb/src/main/extension/extension_install.cpp
   src/duckdb/src/main/extension/extension_load.cpp
@@ -446,71 +447,7 @@ set(DUCKDB_SRC_FILES
   src/duckdb/ub_src_transaction.cpp)
 
 set(JEMALLOC_SRC_FILES 
-  src/duckdb/third_party/jemalloc/src/arena.c
-  src/duckdb/third_party/jemalloc/src/background_thread.c
-  src/duckdb/third_party/jemalloc/src/base.c
-  src/duckdb/third_party/jemalloc/src/batcher.c
-  src/duckdb/third_party/jemalloc/src/bin.c
-  src/duckdb/third_party/jemalloc/src/bin_info.c
-  src/duckdb/third_party/jemalloc/src/bitmap.c
-  src/duckdb/third_party/jemalloc/src/buf_writer.c
-  src/duckdb/third_party/jemalloc/src/cache_bin.c
-  src/duckdb/third_party/jemalloc/src/ckh.c
-  src/duckdb/third_party/jemalloc/src/counter.c
-  src/duckdb/third_party/jemalloc/src/ctl.c
-  src/duckdb/third_party/jemalloc/src/decay.c
-  src/duckdb/third_party/jemalloc/src/div.c
-  src/duckdb/third_party/jemalloc/src/ecache.c
-  src/duckdb/third_party/jemalloc/src/edata.c
-  src/duckdb/third_party/jemalloc/src/edata_cache.c
-  src/duckdb/third_party/jemalloc/src/ehooks.c
-  src/duckdb/third_party/jemalloc/src/emap.c
-  src/duckdb/third_party/jemalloc/src/eset.c
-  src/duckdb/third_party/jemalloc/src/exp_grow.c
-  src/duckdb/third_party/jemalloc/src/extent.c
-  src/duckdb/third_party/jemalloc/src/extent_dss.c
-  src/duckdb/third_party/jemalloc/src/extent_mmap.c
-  src/duckdb/third_party/jemalloc/src/fxp.c
-  src/duckdb/third_party/jemalloc/src/hook.c
-  src/duckdb/third_party/jemalloc/src/hpa.c
-  src/duckdb/third_party/jemalloc/src/hpa_hooks.c
-  src/duckdb/third_party/jemalloc/src/hpdata.c
-  src/duckdb/third_party/jemalloc/src/inspect.c
-  src/duckdb/third_party/jemalloc/src/jemalloc.c
-  src/duckdb/third_party/jemalloc/src/large.c
-  src/duckdb/third_party/jemalloc/src/log.c
-  src/duckdb/third_party/jemalloc/src/malloc_io.c
-  src/duckdb/third_party/jemalloc/src/mutex.c
-  src/duckdb/third_party/jemalloc/src/nstime.c
-  src/duckdb/third_party/jemalloc/src/pa.c
-  src/duckdb/third_party/jemalloc/src/pa_extra.c
-  src/duckdb/third_party/jemalloc/src/pac.c
-  src/duckdb/third_party/jemalloc/src/pages.c
-  src/duckdb/third_party/jemalloc/src/pai.c
-  src/duckdb/third_party/jemalloc/src/peak_event.c
-  src/duckdb/third_party/jemalloc/src/prof.c
-  src/duckdb/third_party/jemalloc/src/prof_data.c
-  src/duckdb/third_party/jemalloc/src/prof_log.c
-  src/duckdb/third_party/jemalloc/src/prof_recent.c
-  src/duckdb/third_party/jemalloc/src/prof_stats.c
-  src/duckdb/third_party/jemalloc/src/prof_sys.c
-  src/duckdb/third_party/jemalloc/src/psset.c
-  src/duckdb/third_party/jemalloc/src/rtree.c
-  src/duckdb/third_party/jemalloc/src/safety_check.c
-  src/duckdb/third_party/jemalloc/src/san.c
-  src/duckdb/third_party/jemalloc/src/san_bump.c
-  src/duckdb/third_party/jemalloc/src/sc.c
-  src/duckdb/third_party/jemalloc/src/sec.c
-  src/duckdb/third_party/jemalloc/src/stats.c
-  src/duckdb/third_party/jemalloc/src/sz.c
-  src/duckdb/third_party/jemalloc/src/tcache.c
-  src/duckdb/third_party/jemalloc/src/test_hooks.c
-  src/duckdb/third_party/jemalloc/src/thread_event.c
-  src/duckdb/third_party/jemalloc/src/ticker.c
-  src/duckdb/third_party/jemalloc/src/tsd.c
-  src/duckdb/third_party/jemalloc/src/util.c
-  src/duckdb/third_party/jemalloc/src/witness.c
-  src/duckdb/third_party/jemalloc/src/zone.c)
+  )
 
 set(LINK_LIB_LIST "")
 

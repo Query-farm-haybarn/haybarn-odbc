@@ -62,11 +62,15 @@ string ExtensionHelper::ExtensionInstallDocumentationLink(const string &extensio
 vector<duckdb::string> ExtensionHelper::DefaultExtensionFolders(FileSystem &fs) {
 	vector<duckdb::string> default_folders;
 // These fallbacks are necessary if the user doesn't use the CMake build.
+// Haybarn: extension cache dir is ~/.haybarn/extensions/ — clean break from
+// upstream's ~/.duckdb/extensions/ (DuckDB-signed extensions wouldn't verify
+// against the Haybarn trust root anyway, so reusing the same path would
+// only confuse users by leaving stale, unloadable files behind).
 #ifndef DUCKDB_EXTENSION_DIRECTORIES
 #ifdef _WIN32
-#define DUCKDB_EXTENSION_DIRECTORIES "~\\.duckdb\\extensions"
+#define DUCKDB_EXTENSION_DIRECTORIES "~\\.haybarn\\extensions"
 #else
-#define DUCKDB_EXTENSION_DIRECTORIES "~/.duckdb/extensions"
+#define DUCKDB_EXTENSION_DIRECTORIES "~/.haybarn/extensions"
 #endif
 #endif
 	string dirs_string(DUCKDB_EXTENSION_DIRECTORIES);
@@ -254,8 +258,16 @@ string ExtensionHelper::ExtensionUrlTemplate(optional_ptr<const DatabaseInstance
                                              const ExtensionRepository &repository, const string &version) {
 	string versioned_path;
 	if (!version.empty()) {
-		versioned_path = "/${NAME}/" + version + "/${REVISION}/${PLATFORM}/${NAME}.duckdb_extension";
+		// Haybarn: pinned installs resolve to the per-build immutable object, whose key is
+		//   <repository>/<engine-version>/<platform>/<name>/<ext-commit-short>/<name>.duckdb_extension
+		// Note the segment order differs from upstream DuckDB (which puts name/version ahead
+		// of the engine revision): the Haybarn extension buckets are laid out revision-first so
+		// every artifact for one engine build — the mutable "latest" slot below, the immutable
+		// per-build directories, and the signed current.json pointer beside them — lives under a
+		// single prefix. See haybarn-extension-ci-tools scripts/publish/publish_extensions.py.
+		versioned_path = "/${REVISION}/${PLATFORM}/${NAME}/" + version + "/${NAME}.duckdb_extension";
 	} else {
+		// Unpinned: the mutable "latest" single-slot path.
 		versioned_path = "/${REVISION}/${PLATFORM}/${NAME}.duckdb_extension";
 	}
 #ifdef WASM_LOADABLE_EXTENSIONS
@@ -277,7 +289,7 @@ string ExtensionHelper::ExtensionFinalizeUrlTemplate(const string &url_template,
 static void CheckExtensionMetadataOnInstall(DatabaseInstance &db, void *in_buffer, idx_t file_size,
                                             ExtensionInstallInfo &info, const string &extension_name) {
 	if (file_size < ParsedExtensionMetaData::FOOTER_SIZE) {
-		throw IOException("Failed to install '%s', file too small to be a valid DuckDB extension!", extension_name);
+		throw IOException("Failed to install '%s', file too small to be a valid Haybarn extension!", extension_name);
 	}
 
 	auto parsed_metadata = ExtensionHelper::ParseExtensionMetaData(static_cast<char *>(in_buffer) +
@@ -396,6 +408,9 @@ static unique_ptr<ExtensionInstallInfo> DirectInstallExtension(DatabaseInstance 
 		info.full_path = file;
 		info.repository_url = options.repository->path;
 	}
+	// Haybarn: record the pin (empty when unpinned, which is how FORCE INSTALL without a
+	// VERSION clause clears an existing one).
+	info.pinned_version = options.version;
 
 	QueryContext query_context(context);
 	WriteExtensionFiles(query_context, fs, temp_path, local_extension_path, extension_decompressed,
@@ -463,10 +478,12 @@ static unique_ptr<ExtensionInstallInfo> InstallFromHttpUrl(DatabaseInstance &db,
 			                  message, response->GetRequestError());
 		}
 		// if this was not a request error this means the server responded - report the response status and response
-		throw HTTPException(*response, "Failed to download extension \"%s\" at URL \"%s\" (HTTP %n)\n%s",
+		throw HTTPException(*response, "Failed to download extension \"%s\" at URL \"%s\" (HTTP %d)\n%s",
 		                    extension_name, url, int(response->status), message);
 	}
 	if (response->status == HTTPStatusCode::NotModified_304 && install_info) {
+		// Nothing is rewritten on 304, and install_info was read from the existing .info — so it
+		// already carries the correct Haybarn pin. Leave it alone.
 		return install_info;
 	}
 
@@ -487,6 +504,8 @@ static unique_ptr<ExtensionInstallInfo> InstallFromHttpUrl(DatabaseInstance &db,
 		info.mode = ExtensionInstallMode::CUSTOM_PATH;
 		info.full_path = url;
 	}
+	// Haybarn: see DirectInstallExtension — empty when unpinned.
+	info.pinned_version = options.version;
 
 	QueryContext query_context(context);
 	auto &fs = FileSystem::GetLocal(db);
@@ -543,6 +562,35 @@ static void ThrowErrorOnMismatchingExtensionOrigin(FileSystem &fs, const string 
 		}
 	}
 }
+
+//! Haybarn: refuse a non-forced install that would move an extension on or off a version pin.
+//! Requesting the pin an extension is already on is a no-op (the install is idempotent), and a
+//! bare INSTALL of a pinned extension leaves the pin alone — upstream's "already installed,
+//! nothing to do". Anything else is a conflict the user has to resolve explicitly, because
+//! silently keeping the old binary is how a pin gets believed but not applied.
+static void ThrowErrorOnMismatchingExtensionPin(FileSystem &fs, const string &local_extension_path,
+                                                const string &extension_name, const string &requested_version) {
+	if (requested_version.empty()) {
+		return;
+	}
+	auto install_info = ExtensionInstallInfo::TryReadInfoFile(fs, local_extension_path + ".info", extension_name);
+	if (!install_info || install_info->pinned_version == requested_version) {
+		return;
+	}
+	if (install_info->pinned_version.empty()) {
+		throw InvalidInputException(
+		    "Installing extension '%s' failed. The extension is already installed, unpinned, while the "
+		    "extension to be installed is pinned to version '%s'.\n"
+		    "To solve this rerun this command with `FORCE INSTALL`",
+		    extension_name, requested_version);
+	}
+	throw InvalidInputException("Installing extension '%s' failed. The extension is already installed "
+	                            "but pinned to a different version.\n"
+	                            "Currently installed extension is pinned to version '%s', while the extension "
+	                            "to be installed is pinned to version '%s'.\n"
+	                            "To solve this rerun this command with `FORCE INSTALL`",
+	                            extension_name, install_info->pinned_version, requested_version);
+}
 #endif // DUCKDB_DISABLE_EXTENSION_LOAD
 
 unique_ptr<ExtensionInstallInfo> ExtensionHelper::InstallExtensionInternal(DatabaseInstance &db, FileSystem &fs,
@@ -560,6 +608,12 @@ unique_ptr<ExtensionInstallInfo> ExtensionHelper::InstallExtensionInternal(Datab
 	    local_extension_path + ".tmp-" + UUID::ToString(UUID::GenerateRandomUUID()) + ".duckdb_extension";
 
 	if (fs.FileExists(local_extension_path) && !options.force_install) {
+		// Haybarn: file exists — throw if this install would move the extension on or off a
+		// version pin. Deliberately not gated on allow_extensions_metadata_mismatch (a different
+		// concern) and checked before the origin comparison, so a pin conflict is reported as
+		// such rather than as a repository mismatch.
+		ThrowErrorOnMismatchingExtensionPin(fs, local_extension_path, extension_name, options.version);
+
 		// File exists: throw error if origin mismatches
 		if (options.throw_on_origin_mismatch && !Settings::Get<AllowExtensionsMetadataMismatchSetting>(db) &&
 		    fs.FileExists(local_extension_path + ".info")) {

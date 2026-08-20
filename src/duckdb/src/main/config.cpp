@@ -773,7 +773,8 @@ OrderByNullType DBConfig::ResolveNullOrder(ClientContext &context, OrderType ord
 }
 
 string GetDefaultUserAgent() {
-	return StringUtil::Format("duckdb/%s(%s)", DuckDB::LibraryVersion(), DuckDB::Platform());
+	// Haybarn: brand the default HTTP user-agent.
+	return StringUtil::Format("haybarn/%s(%s)", DuckDB::LibraryVersion(), DuckDB::Platform());
 }
 
 const string DBConfig::UserAgent() const {
@@ -919,7 +920,7 @@ SerializationCompatibility SerializationCompatibility::FromString(const string &
 	auto serialization_version = GetSerializationVersion(input.c_str());
 	if (!serialization_version.IsValid()) {
 		auto candidates = GetSerializationCandidates();
-		throw InvalidInputException("The version string '%s' is not a known DuckDB version, valid options are: %s",
+		throw InvalidInputException("The version string '%s' is not a known engine version, valid options are: %s",
 		                            input, StringUtil::Join(candidates, ", "));
 	}
 	SerializationCompatibility result;
