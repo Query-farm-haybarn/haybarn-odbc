@@ -394,7 +394,7 @@ static SQLRETURN GetInfoInternal(SQLHDBC connection_handle, SQLUSMALLINT info_ty
 	}
 	case SQL_DRIVER_NAME:
 	case SQL_DBMS_NAME: {
-		std::string dbname = "DuckDB";
+		std::string dbname = "Haybarn";
 		return WriteStringInfo(connection_handle, dbname, reinterpret_cast<CHAR_TYPE *>(info_value_ptr), buffer_length,
 		                       string_length_ptr);
 	}

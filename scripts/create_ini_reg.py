@@ -9,7 +9,7 @@ subprocess.run(
     [
         reg_exe,
         "add",
-        "HKCU\\SOFTWARE\\ODBC\\ODBC.INI\\DuckDB",
+        "HKCU\\SOFTWARE\\ODBC\\ODBC.INI\\Haybarn",
         "/v",
         "database",
         "/t",
@@ -20,14 +20,14 @@ subprocess.run(
     check=True,
 )
 subprocess.run(
-    [reg_exe, "add", "HKCU\\SOFTWARE\\ODBC\\ODBC.INI\\DuckDB", "/v", "access_mode", "/t", "REG_SZ", "/d", "READ_ONLY"],
+    [reg_exe, "add", "HKCU\\SOFTWARE\\ODBC\\ODBC.INI\\Haybarn", "/v", "access_mode", "/t", "REG_SZ", "/d", "READ_ONLY"],
     check=True,
 )
 subprocess.run(
     [
         reg_exe,
         "add",
-        "HKCU\\SOFTWARE\\ODBC\\ODBC.INI\\DuckDB",
+        "HKCU\\SOFTWARE\\ODBC\\ODBC.INI\\Haybarn",
         "/v",
         "allow_unsigned_extensions",
         "/t",
