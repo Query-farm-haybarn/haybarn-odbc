@@ -110,13 +110,13 @@ TEST_CASE("Test truncation: NULL buffer behavior", "[odbc]") {
 		SQLSMALLINT len = -1;
 		SQLRETURN ret = SQLGetInfo(dbc, SQL_DBMS_NAME, nullptr, 0, &len);
 		REQUIRE(ret == SQL_SUCCESS);
-		REQUIRE(len == 6); // "DuckDB"
+		REQUIRE(len == 7); // "Haybarn"
 	}
 	SECTION("SQLGetInfoW") {
 		SQLSMALLINT len = -1;
 		SQLRETURN ret = SQLGetInfoW(dbc, SQL_DBMS_NAME, nullptr, 0, &len);
 		REQUIRE(ret == SQL_SUCCESS);
-		REQUIRE(len == 12); // "DuckDB" bytes
+		REQUIRE(len == 14); // "Haybarn" bytes
 	}
 
 	EXECUTE_AND_CHECK("SQLFreeStmt (HSTMT)", hstmt, SQLFreeStmt, hstmt, SQL_CLOSE);
@@ -295,9 +295,9 @@ TEST_CASE("Test truncation: buffer too small behavior", "[odbc]") {
 		                           static_cast<SQLSMALLINT>(buf.size()), &len);
 		REQUIRE(ret == SQL_SUCCESS_WITH_INFO);
 		CheckDiagCode(dbc, SQL_HANDLE_DBC);
-		REQUIRE(len == 6); // "DuckDB"
+		REQUIRE(len == 7); // "Haybarn"
 		REQUIRE(buf[2] == '\0');
-		REQUIRE(STR_EQUAL(reinterpret_cast<char *>(buf.data()), "Du"));
+		REQUIRE(STR_EQUAL(reinterpret_cast<char *>(buf.data()), "Ha"));
 	}
 	SECTION("SQLGetInfoW") {
 		std::vector<SQLWCHAR> buf;
@@ -307,12 +307,12 @@ TEST_CASE("Test truncation: buffer too small behavior", "[odbc]") {
 		                            static_cast<SQLSMALLINT>(buf.size() * sizeof(SQLWCHAR)), &len);
 		REQUIRE(ret == SQL_SUCCESS_WITH_INFO);
 		CheckDiagCode(dbc, SQL_HANDLE_DBC);
-		REQUIRE(len == 12); // "DuckDB" bytes
+		REQUIRE(len == 14); // "Haybarn" bytes
 		REQUIRE(buf[2] == 0);
 		auto utf8_buf = duckdb::widechar::utf16_to_utf8_lenient(buf.data(), buf.size() - 1);
 		REQUIRE(utf8_buf.size() == 2);
-		REQUIRE(utf8_buf.at(0) == 'D');
-		REQUIRE(utf8_buf.at(1) == 'u');
+		REQUIRE(utf8_buf.at(0) == 'H');
+		REQUIRE(utf8_buf.at(1) == 'a');
 	}
 
 	EXECUTE_AND_CHECK("SQLFreeStmt (HSTMT)", hstmt, SQLFreeStmt, hstmt, SQL_CLOSE);
@@ -446,23 +446,23 @@ TEST_CASE("Test truncation: buffer exact size behavior", "[odbc]") {
 
 	SECTION("SQLGetInfo") {
 		std::vector<SQLCHAR> buf;
-		buf.resize(7);
+		buf.resize(8);
 		SQLSMALLINT len = -1;
 		SQLRETURN ret = SQLGetInfo(dbc, SQL_DBMS_NAME, reinterpret_cast<SQLPOINTER>(buf.data()),
 		                           static_cast<SQLSMALLINT>(buf.size()), &len);
 		REQUIRE(ret == SQL_SUCCESS);
-		REQUIRE(len == 6); // "DuckDB"
-		REQUIRE(buf[6] == '\0');
+		REQUIRE(len == 7); // "Haybarn"
+		REQUIRE(buf[7] == '\0');
 	}
 	SECTION("SQLGetInfoW") {
 		std::vector<SQLWCHAR> buf;
-		buf.resize(7);
+		buf.resize(8);
 		SQLSMALLINT len = -1;
 		SQLRETURN ret = SQLGetInfoW(dbc, SQL_DBMS_NAME, reinterpret_cast<SQLPOINTER>(buf.data()),
 		                            static_cast<SQLSMALLINT>(buf.size() * sizeof(SQLWCHAR)), &len);
 		REQUIRE(ret == SQL_SUCCESS);
-		REQUIRE(len == 12); // "DuckDB" bytes
-		REQUIRE(buf[6] == 0);
+		REQUIRE(len == 14); // "Haybarn" bytes
+		REQUIRE(buf[7] == 0);
 	}
 
 	EXECUTE_AND_CHECK("SQLFreeStmt (HSTMT)", hstmt, SQLFreeStmt, hstmt, SQL_CLOSE);

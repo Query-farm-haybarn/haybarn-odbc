@@ -1,7 +1,7 @@
 System.Data.Odbc tests for .NET on Linux
 ----------------------------------------
 
-To run tests on Ubuntu-22.04 add `[DuckDB Driver]` to `odbcinst.ini` and run:
+To run tests on Ubuntu-22.04 add `[Haybarn Driver]` to `odbcinst.ini` and run:
 
 ```
 sudo apt install unixodbc-dev dotnet-sdk-8.0

@@ -91,7 +91,7 @@ TEST_CASE("Test session init fail no file", "[odbc]") {
 	                  ConvertToSQLPOINTER(SQL_OV_ODBC3), 0);
 	EXECUTE_AND_CHECK("SQLAllocHandle (DBC)", nullptr, SQLAllocHandle, SQL_HANDLE_DBC, env, &dbc);
 
-	auto ret = SQLDriverConnect(dbc, nullptr, ConvertToSQLCHAR("DSN=DuckDB"), SQL_NTS, nullptr, SQL_NTS, nullptr,
+	auto ret = SQLDriverConnect(dbc, nullptr, ConvertToSQLCHAR("DSN=Haybarn"), SQL_NTS, nullptr, SQL_NTS, nullptr,
 	                            SQL_DRIVER_COMPLETE);
 	REQUIRE(ret == SQL_ERROR);
 
@@ -144,7 +144,7 @@ TEST_CASE("Test session init SHA256 fail", "[odbc]") {
 	                  ConvertToSQLPOINTER(SQL_OV_ODBC3), 0);
 	EXECUTE_AND_CHECK("SQLAllocHandle (DBC)", nullptr, SQLAllocHandle, SQL_HANDLE_DBC, env, &dbc);
 
-	auto ret = SQLDriverConnect(dbc, nullptr, ConvertToSQLCHAR("DSN=DuckDB"), SQL_NTS, nullptr, SQL_NTS, nullptr,
+	auto ret = SQLDriverConnect(dbc, nullptr, ConvertToSQLCHAR("DSN=Haybarn"), SQL_NTS, nullptr, SQL_NTS, nullptr,
 	                            SQL_DRIVER_COMPLETE);
 	REQUIRE(ret == SQL_ERROR);
 
@@ -173,7 +173,7 @@ TEST_CASE("Test session init conn string prohibited", "[odbc]") {
 	EXECUTE_AND_CHECK("SQLAllocHandle (DBC)", nullptr, SQLAllocHandle, SQL_HANDLE_DBC, env, &dbc);
 
 	std::string conn_str =
-	    "driver={DuckDB Driver};session_init_sql_file=" + path +
+	    "driver={Haybarn Driver};session_init_sql_file=" + path +
 	    ";session_init_sql_file_sha256=e916fc2bcab2e0fad8d8e94273b8c79ff576aafbca9941e06ab268d9176269ec;";
 	auto ret = SQLDriverConnect(dbc, nullptr, ConvertToSQLCHAR(conn_str.c_str()), SQL_NTS, nullptr, SQL_NTS, nullptr,
 	                            SQL_DRIVER_COMPLETE);
@@ -208,7 +208,7 @@ TEST_CASE("Test session init tracing", "[odbc]") {
 	                  ConvertToSQLPOINTER(SQL_OV_ODBC3), 0);
 	EXECUTE_AND_CHECK("SQLAllocHandle (DBC)", nullptr, SQLAllocHandle, SQL_HANDLE_DBC, env, &dbc);
 
-	auto ret = SQLDriverConnect(dbc, nullptr, ConvertToSQLCHAR("DSN=DuckDB"), SQL_NTS, nullptr, SQL_NTS, nullptr,
+	auto ret = SQLDriverConnect(dbc, nullptr, ConvertToSQLCHAR("DSN=Haybarn"), SQL_NTS, nullptr, SQL_NTS, nullptr,
 	                            SQL_DRIVER_COMPLETE);
 	REQUIRE(ret == SQL_SUCCESS_WITH_INFO);
 
@@ -217,7 +217,7 @@ TEST_CASE("Test session init tracing", "[odbc]") {
 	ACCESS_DIAGNOSTIC_WIDE(state, message, dbc, SQL_HANDLE_DBC);
 
 	REQUIRE(state == "01000");
-	REQUIRE(message == "ODBC_DuckDB->SQLDriverConnect\nSession init SQL:\nCREATE TABLE tab1(col1 int)");
+	REQUIRE(message == "ODBC_Haybarn->SQLDriverConnect\nSession init SQL:\nCREATE TABLE tab1(col1 int)");
 
 	DISCONNECT_FROM_DATABASE(env, dbc);
 }
@@ -244,7 +244,7 @@ INSERT INTO tab1 VALUES(43);
 	                  ConvertToSQLPOINTER(SQL_OV_ODBC3), 0);
 	EXECUTE_AND_CHECK("SQLAllocHandle (DBC)", nullptr, SQLAllocHandle, SQL_HANDLE_DBC, env, &dbc);
 
-	auto ret = SQLDriverConnect(dbc, nullptr, ConvertToSQLCHAR("DSN=DuckDB"), SQL_NTS, nullptr, SQL_NTS, nullptr,
+	auto ret = SQLDriverConnect(dbc, nullptr, ConvertToSQLCHAR("DSN=Haybarn"), SQL_NTS, nullptr, SQL_NTS, nullptr,
 	                            SQL_DRIVER_COMPLETE);
 	REQUIRE(ret == SQL_ERROR);
 
@@ -278,7 +278,7 @@ INSERT INTO tab1 VALUES(NULL);
 	                  ConvertToSQLPOINTER(SQL_OV_ODBC3), 0);
 	EXECUTE_AND_CHECK("SQLAllocHandle (DBC)", nullptr, SQLAllocHandle, SQL_HANDLE_DBC, env, &dbc);
 
-	auto ret = SQLDriverConnect(dbc, nullptr, ConvertToSQLCHAR("DSN=DuckDB"), SQL_NTS, nullptr, SQL_NTS, nullptr,
+	auto ret = SQLDriverConnect(dbc, nullptr, ConvertToSQLCHAR("DSN=Haybarn"), SQL_NTS, nullptr, SQL_NTS, nullptr,
 	                            SQL_DRIVER_COMPLETE);
 	REQUIRE(ret == SQL_ERROR);
 

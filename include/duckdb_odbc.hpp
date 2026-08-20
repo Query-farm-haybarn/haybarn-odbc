@@ -86,7 +86,7 @@ public:
 	// this is the database name, see: SQLSetConnectAttr
 	std::string sql_attr_current_catalog;
 	// this is DSN get in string connection, see: SQLConnect
-	// Ex: "DSN=DuckDB"
+	// Ex: "DSN=Haybarn"
 	std::string dsn;
 	// reference to an open statement handled by this connection
 	vector<OdbcHandleStmt *> vec_stmt_ref;

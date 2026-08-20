@@ -1,10 +1,10 @@
-# System.Data.ODBC tests for DuckDB ODBC
+# System.Data.ODBC tests for Haybarn ODBC
 
 It is written in C++/CLI using .NET Framework. 
 
 Cmake Visual Studio Generator is required. 
 
-It is built as part of a standard DuckDB build. 
+It is built as part of a standard Haybarn ODBC build. 
 
 After successful build, the test executable can be found in:
 

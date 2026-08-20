@@ -8,7 +8,7 @@ using ODBC,DataFrames
 home = ENV["HOME"]
 ODBC.setunixODBC(;ODBCSYSINI=home, ODBCINSTINI=".odbcinst.ini", ODBCINI=string(home, "/.odbc.ini"))
 
-conn=ODBC.Connection("DSN=DuckDB;")
+conn=ODBC.Connection("DSN=Haybarn;")
 
 duckdb_dir = pwd()
 DBInterface.execute(conn,"CREATE TABLE test AS SELECT * FROM read_csv_auto('" * duckdb_dir * "test/test.csv')")

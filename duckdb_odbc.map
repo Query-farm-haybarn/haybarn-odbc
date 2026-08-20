@@ -1,4 +1,4 @@
-DUCKDB_ODBC {
+HAYBARN_ODBC {
   global:
     SQLAllocHandle;
     SQLBindCol;

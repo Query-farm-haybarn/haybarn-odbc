@@ -2,8 +2,8 @@
 
 set -e
 
-#echo -e "[ODBC]\nTrace = yes\nTraceFile = /tmp/odbctrace\n\n[DuckDB Driver]\nDriver = "$(pwd)"/build/debug/libduckdb_odbc.so" > ~/.odbcinst.ini
-#echo -e "[DuckDB]\nDriver = DuckDB Driver\nDatabase=:memory:\n" > ~/.odbc.ini
+#echo -e "[ODBC]\nTrace = yes\nTraceFile = /tmp/odbctrace\n\n[Haybarn Driver]\nDriver = "$(pwd)"/build/debug/libhaybarn_odbc.so" > ~/.odbcinst.ini
+#echo -e "[Haybarn]\nDriver = Haybarn Driver\nDatabase=:memory:\n" > ~/.odbc.ini
 
 BASE_DIR=$(dirname $0)
 
@@ -22,9 +22,9 @@ case "$(uname -s)" in
         ;;
 esac
 
-$BASE_DIR/../linux_setup/unixodbc_setup.sh -u -D $(pwd)/build/debug/libduckdb_odbc.${extension}
+$BASE_DIR/../linux_setup/unixodbc_setup.sh -u -D $(pwd)/build/debug/libhaybarn_odbc.${extension}
 
-export NANODBC_TEST_CONNSTR_ODBC="DRIVER=DuckDB Driver;"
+export NANODBC_TEST_CONNSTR_ODBC="DRIVER=Haybarn Driver;"
 export ASAN_OPTIONS=verify_asan_link_order=0
 
 declare -a SUPPORTED_TESTS

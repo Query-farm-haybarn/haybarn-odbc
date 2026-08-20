@@ -28,7 +28,7 @@ void ConnectWithoutDSN(SQLHANDLE &env, SQLHANDLE &dbc) {
 
 // Connect to a database with extra keywords provided by Power Query SDK
 void ConnectWithPowerQuerySDK(SQLHANDLE &env, SQLHANDLE &dbc) {
-	std::string conn_str = "DRIVER={DuckDB Driver};database=" + GetTesterDirectory() + ";" +
+	std::string conn_str = "DRIVER={Haybarn Driver};database=" + GetTesterDirectory() + ";" +
 	                       "custom_user_agent=powerbi/v0.0(DuckDB);" + "Trusted_Connection=yes;" + "UID=user1;" +
 	                       "PWD=password1;" + "allow_unsigned_extensions=true;";
 	std::vector<SQLCHAR> out_str_vec;
@@ -53,7 +53,7 @@ void ConnectWithPowerQuerySDK(SQLHANDLE &env, SQLHANDLE &dbc) {
 }
 
 void ConnectWithPowerQuerySDKWide(SQLHANDLE &env, SQLHANDLE &dbc) {
-	std::string conn_str = "DRIVER={DuckDB Driver};database=" + GetTesterDirectory() + ";" +
+	std::string conn_str = "DRIVER={Haybarn Driver};database=" + GetTesterDirectory() + ";" +
 	                       "custom_user_agent=powerbi/v0.0(DuckDB);" + "Trusted_Connection=yes;" + "UID=user1;" +
 	                       "PWD=password1;" + "allow_unsigned_extensions=true;";
 	SQLWCHAR wstr[1024];
@@ -380,7 +380,7 @@ TEST_CASE("Test connection string without null terminator", "[odbc]") {
 
 	EXECUTE_AND_CHECK("SQLAllocHandle (DBC)", nullptr, SQLAllocHandle, SQL_HANDLE_DBC, env, &dbc);
 
-	std::string conn_string_prefix = "Driver={DuckDB Driver};";
+	std::string conn_string_prefix = "Driver={Haybarn Driver};";
 	// This connection option is deliverately invalid
 	std::string conn_string_suffix = "threads=0;";
 	SQLSMALLINT conn_string_len = static_cast<SQLSMALLINT>(conn_string_prefix.length());

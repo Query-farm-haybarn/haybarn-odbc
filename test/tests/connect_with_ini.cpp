@@ -11,7 +11,7 @@ TEST_CASE("Test SQLConnect with Ini File", "[odbc]") {
 	// Connect to the database using the ini file
 	SQLHANDLE env;
 	SQLHANDLE dbc;
-	DRIVER_CONNECT_TO_DATABASE(env, dbc, "DSN=DuckDB");
+	DRIVER_CONNECT_TO_DATABASE(env, dbc, "DSN=Haybarn");
 
 	// Check that the database is set
 	CheckDatabase(dbc);
@@ -34,7 +34,7 @@ TEST_CASE("Test SQLConnect with Ini File with extra options", "[odbc]") {
 	// Connect to the database using the ini file
 	SQLHANDLE env;
 	SQLHANDLE dbc;
-	DRIVER_CONNECT_TO_DATABASE(env, dbc, "DSN=DuckDB;allow_unsigned_extensions=false;");
+	DRIVER_CONNECT_TO_DATABASE(env, dbc, "DSN=Haybarn;allow_unsigned_extensions=false;");
 
 	// Check that the database is set
 	CheckDatabase(dbc);
@@ -54,7 +54,7 @@ TEST_CASE("Test SQLConnect with Ini File with unsupported options", "[odbc]") {
 	// Connect to the database using the ini file
 	SQLHANDLE env;
 	SQLHANDLE dbc;
-	DRIVER_CONNECT_TO_DATABASE(env, dbc, "DSN=DuckDB;unsupported_option_1=value_1;");
+	DRIVER_CONNECT_TO_DATABASE(env, dbc, "DSN=Haybarn;unsupported_option_1=value_1;");
 
 	// Check that the database is set
 	CheckDatabase(dbc);
