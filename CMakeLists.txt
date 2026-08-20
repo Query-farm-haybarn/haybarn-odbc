@@ -150,6 +150,7 @@ set(DUCKDB_SRC_FILES
   src/duckdb/src/function/table/version/pragma_version.cpp
   src/duckdb/src/function/variant/variant_shredding.cpp
   src/duckdb/src/main/extension/extension_alias.cpp
+  src/duckdb/src/main/extension/extension_discovery.cpp
   src/duckdb/src/main/extension/extension_helper.cpp
   src/duckdb/src/main/extension/extension_install.cpp
   src/duckdb/src/main/extension/extension_load.cpp

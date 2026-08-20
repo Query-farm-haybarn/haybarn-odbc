@@ -39,10 +39,16 @@ public:
 	string full_path;
 	//! (optional) Repository url where the extension came from
 	string repository_url;
-	//! (optional) Version of the extension
+	//! (optional) Version of the extension, as reported by the installed binary's own metadata
 	string version;
 	//! (optional) ETag of last fetched resource
 	string etag;
+	//! Haybarn: (optional) the version the user pinned this install to with
+	//! `INSTALL <ext> VERSION '<x>'`. Distinct from `version` above: this is what was *requested*
+	//! (and forms a path segment in the download URL), whereas `version` is whatever the fetched
+	//! binary reports about itself. Non-empty means pinned — `UPDATE EXTENSIONS` leaves it alone
+	//! and only `FORCE INSTALL` can move or clear it.
+	string pinned_version;
 
 	void Serialize(Serializer &serializer) const;
 
@@ -54,10 +60,28 @@ public:
 };
 
 struct ExtensionRepository {
-	//! All currently available repositories
-	static constexpr const char *CORE_REPOSITORY_URL = "http://extensions.duckdb.org";
-	static constexpr const char *CORE_NIGHTLY_REPOSITORY_URL = "http://nightly-extensions.duckdb.org";
-	static constexpr const char *COMMUNITY_REPOSITORY_URL = "http://community-extensions.duckdb.org";
+	//! All currently available repositories. Haybarn hosts its own signed
+	//! extension repositories on Cloudflare R2, fronted by the single
+	//! `haybarn-extensions.query.farm` custom domain. Core and community share
+	//! one bucket, segregated by top-level path prefix (/core, /community).
+	//! The upstream nightly repository concept is intentionally dropped.
+	//!
+	//! URLs are http:// intentionally — matches upstream's design. The
+	//! engine's built-in HTTPUtil (httplib without OpenSSL) can only
+	//! speak HTTP, so the bootstrap install of httpfs itself happens
+	//! over HTTP. The binary is RSA-signature-verified against the
+	//! embedded HAYBARN_TRUST_ROOT key on dlopen, so a MitM can't
+	//! substitute a malicious extension even over plain HTTP. Once
+	//! httpfs is loaded, HTTPUtil::BumpToSecureProtocol upgrades
+	//! subsequent install URLs to https://.
+	//!
+	//! NOTE: a Cloudflare Configuration Rule on the query.farm zone
+	//! disables "Always Use HTTPS" for hostname == haybarn-extensions
+	//! .query.farm so R2 serves http directly (otherwise R2 would 301
+	//! to https and the engine's install path doesn't follow redirects
+	//! because params.follow_location = false).
+	static constexpr const char *CORE_REPOSITORY_URL = "http://haybarn-extensions.query.farm/core";
+	static constexpr const char *COMMUNITY_REPOSITORY_URL = "http://haybarn-extensions.query.farm/community";
 
 	//! Debugging repositories (target local, relative paths that are produced by DuckDB's build system)
 	static constexpr const char *BUILD_DEBUG_REPOSITORY_PATH = "./build/debug/repository";

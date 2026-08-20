@@ -9,6 +9,7 @@
 #pragma once
 
 #include "duckdb/common/types.hpp"
+#include "duckdb/common/atomic.hpp"
 #include "duckdb/common/case_insensitive_map.hpp"
 #include "duckdb/common/enums/http_status_code.hpp"
 #include "duckdb/common/types/timestamp.hpp"
@@ -121,6 +122,10 @@ struct HTTPResponse {
 	string reason;
 	HTTPHeaders headers;
 	bool success = true;
+	//! Set by a backend when the request was aborted because its cancellation flag was
+	//! observed set (see BaseRequest::cancellation). A cancelled response is terminal:
+	//! ShouldRetry() returns false so RunRequestWithRetry does not retry it with backoff.
+	bool cancelled = false;
 
 public:
 	bool HasHeader(const string &key) const;
@@ -131,6 +136,9 @@ public:
 	bool HasRequestError() const;
 	const string &GetRequestError() const;
 	const string &GetError() const;
+	bool IsCancelled() const {
+		return cancelled;
+	}
 
 	bool ShouldRetry() const;
 };
@@ -150,6 +158,13 @@ struct BaseRequest {
 	HTTPParams &params;
 	//! Whether or not to return failed requests (instead of throwing)
 	bool try_request = false;
+	//! Optional non-owning pointer to a caller-owned cancellation flag, typically
+	//! &ClientContext::interrupted. Polled by the backend during the transfer; when it
+	//! reads true the request is aborted and the response has cancelled=true. The flag
+	//! MUST outlive the HTTPUtil::Request() call (it is read cross-thread, e.g. on the
+	//! curl-multi dispatcher thread). Honored for every HTTP method by the curl backend;
+	//! the in-tree httplib fallback cancels best-effort (see its client).
+	optional_ptr<const atomic<bool>> cancellation;
 
 	// Requests will optionally contain their timings
 	bool have_request_timing = false;
@@ -201,7 +216,8 @@ struct PutRequestInfo : public BaseRequest {
 
 	const_data_ptr_t buffer_in;
 	idx_t buffer_in_len;
-	const string &content_type;
+	// Owned by value — same dangling-reference hazard as BaseRequest::url.
+	string content_type;
 };
 
 struct HeadRequestInfo : public BaseRequest {
