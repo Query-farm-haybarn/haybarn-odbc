@@ -139,6 +139,20 @@ was skipped), and `INSTALL httpfs; LOAD httpfs;` (not one of the 4
 statically-bundled extensions) should succeed and resolve against
 `haybarn-extensions.query.farm`.
 
+**Negative proof (rejects non-Haybarn-signed extensions) — `allow_unsigned_extensions`
+defaults to `true`, which masks this.** A DuckDB-signed (not Haybarn-signed)
+extension will install and load *successfully* under the default config —
+that's `allow_unsigned_extensions` permitting it through, not a broken trust
+root. To actually observe the rejection, force strict signature checking
+first:
+```sql
+SET allow_unsigned_extensions=false;
+FORCE INSTALL inet FROM 'http://extensions.duckdb.org';
+```
+Expected: `IO Error: Attempting to install an extension file that doesn't
+have a valid signature`. This is the real end-to-end proof the single-key
+trust-root swap works, verified 2026-08-20 against this fork's build.
+
 ## CI
 
 - `.github/workflows/ODBC.yml` — build/test matrix (Linux amd64/arm64,
