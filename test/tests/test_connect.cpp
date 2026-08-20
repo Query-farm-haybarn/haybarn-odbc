@@ -230,7 +230,7 @@ TEST_CASE("Test user_agent - in-memory database", "[odbc][useragent]") {
 	// Execute a simple query
 	EXECUTE_AND_CHECK(
 	    "SQLExecDirect (get user_agent)", hstmt, SQLExecDirect, hstmt,
-	    ConvertToSQLCHAR("SELECT regexp_matches(user_agent, '^duckdb/.*(.*) odbc') FROM pragma_user_agent()"), SQL_NTS);
+	    ConvertToSQLCHAR("SELECT regexp_matches(user_agent, '^haybarn/.*(.*) odbc') FROM pragma_user_agent()"), SQL_NTS);
 
 	EXECUTE_AND_CHECK("SQLFetch (get user_agent)", hstmt, SQLFetch, hstmt);
 	DATA_CHECK(hstmt, 1, "true");
@@ -256,7 +256,7 @@ TEST_CASE("Test user_agent - named database", "[odbc][useragent]") {
 	// Execute a simple query
 	EXECUTE_AND_CHECK(
 	    "SQLExecDirect (get user_agent)", hstmt, SQLExecDirect, hstmt,
-	    ConvertToSQLCHAR("SELECT regexp_matches(user_agent, '^duckdb/.*(.*) odbc') FROM pragma_user_agent()"), SQL_NTS);
+	    ConvertToSQLCHAR("SELECT regexp_matches(user_agent, '^haybarn/.*(.*) odbc') FROM pragma_user_agent()"), SQL_NTS);
 
 	EXECUTE_AND_CHECK("SQLFetch (get user_agent)", hstmt, SQLFetch, hstmt);
 	DATA_CHECK(hstmt, 1, "true");
@@ -284,7 +284,7 @@ TEST_CASE("Test user_agent - named database, custom useragent", "[odbc][useragen
 	EXECUTE_AND_CHECK(
 	    "SQLExecDirect (get user_agent)", hstmt, SQLExecDirect, hstmt,
 	    ConvertToSQLCHAR(
-	        "SELECT regexp_matches(user_agent, '^duckdb/.*(.*) odbc CUSTOM_STRING') FROM pragma_user_agent()"),
+	        "SELECT regexp_matches(user_agent, '^haybarn/.*(.*) odbc CUSTOM_STRING') FROM pragma_user_agent()"),
 	    SQL_NTS);
 
 	EXECUTE_AND_CHECK("SQLFetch (get user_agent)", hstmt, SQLFetch, hstmt);
