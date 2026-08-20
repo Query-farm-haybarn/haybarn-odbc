@@ -95,7 +95,7 @@ TEST_CASE("Test truncation: NULL buffer behavior", "[odbc]") {
 		SQLSMALLINT len = -1;
 		SQLRETURN ret = SQLGetDiagField(SQL_HANDLE_STMT, hstmt, 1, SQL_DIAG_MESSAGE_TEXT, nullptr, 0, &len);
 		REQUIRE(SQL_SUCCEEDED(ret));
-		REQUIRE(len == 65);
+		REQUIRE(len == 67);
 	}
 	SECTION("SQLGetDiagFieldW") {
 		SQLRETURN ret_err = SQLGetStmtAttr(hstmt, SQL_ATTR_CURSOR_SENSITIVITY, nullptr, 0, nullptr);
@@ -103,7 +103,7 @@ TEST_CASE("Test truncation: NULL buffer behavior", "[odbc]") {
 		SQLSMALLINT len = -1;
 		SQLRETURN ret = SQLGetDiagFieldW(SQL_HANDLE_STMT, hstmt, 1, SQL_DIAG_MESSAGE_TEXT, nullptr, 0, &len);
 		REQUIRE(SQL_SUCCEEDED(ret));
-		REQUIRE(len == 130);
+		REQUIRE(len == 134);
 	}
 
 	SECTION("SQLGetInfo") {
@@ -265,7 +265,7 @@ TEST_CASE("Test truncation: buffer too small behavior", "[odbc]") {
 		    SQLGetDiagField(SQL_HANDLE_STMT, hstmt, 1, SQL_DIAG_MESSAGE_TEXT, reinterpret_cast<SQLPOINTER>(buf.data()),
 		                    static_cast<SQLSMALLINT>(buf.size()), &len);
 		REQUIRE(SQL_SUCCEEDED(ret));
-		REQUIRE(len == 65); // "ODBC ..."
+		REQUIRE(len == 67); // "ODBC ..."
 		REQUIRE(buf[2] == '\0');
 		REQUIRE(STR_EQUAL(reinterpret_cast<char *>(buf.data()), "OD"));
 	}
@@ -279,7 +279,7 @@ TEST_CASE("Test truncation: buffer too small behavior", "[odbc]") {
 		    SQLGetDiagFieldW(SQL_HANDLE_STMT, hstmt, 1, SQL_DIAG_MESSAGE_TEXT, reinterpret_cast<SQLPOINTER>(buf.data()),
 		                     static_cast<SQLSMALLINT>(buf.size() * sizeof(SQLWCHAR)), &len);
 		REQUIRE(SQL_SUCCEEDED(ret));
-		REQUIRE(len == 130);
+		REQUIRE(len == 134);
 		REQUIRE(buf[2] == 0);
 		auto utf8_buf = duckdb::widechar::utf16_to_utf8_lenient(buf.data(), buf.size() - 1);
 		REQUIRE(utf8_buf.size() == 2);
@@ -421,27 +421,27 @@ TEST_CASE("Test truncation: buffer exact size behavior", "[odbc]") {
 		SQLRETURN ret_err = SQLGetStmtAttr(hstmt, SQL_ATTR_CURSOR_SENSITIVITY, nullptr, 0, nullptr);
 		REQUIRE(ret_err == SQL_ERROR);
 		std::vector<SQLCHAR> buf;
-		buf.resize(66);
+		buf.resize(68);
 		SQLSMALLINT len = -1;
 		SQLRETURN ret =
 		    SQLGetDiagField(SQL_HANDLE_STMT, hstmt, 1, SQL_DIAG_MESSAGE_TEXT, reinterpret_cast<SQLPOINTER>(buf.data()),
 		                    static_cast<SQLSMALLINT>(buf.size()), &len);
 		REQUIRE(ret == SQL_SUCCESS);
-		REQUIRE(len == 65); // "ODBC ..."
-		REQUIRE(buf[65] == '\0');
+		REQUIRE(len == 67); // "ODBC ..."
+		REQUIRE(buf[67] == '\0');
 	}
 	SECTION("SQLGetDiagFieldW") {
 		SQLRETURN ret_err = SQLGetStmtAttr(hstmt, SQL_ATTR_CURSOR_SENSITIVITY, nullptr, 0, nullptr);
 		REQUIRE(ret_err == SQL_ERROR);
 		std::vector<SQLWCHAR> buf;
-		buf.resize(66);
+		buf.resize(68);
 		SQLSMALLINT len = -1;
 		SQLRETURN ret =
 		    SQLGetDiagFieldW(SQL_HANDLE_STMT, hstmt, 1, SQL_DIAG_MESSAGE_TEXT, reinterpret_cast<SQLPOINTER>(buf.data()),
 		                     static_cast<SQLSMALLINT>(buf.size() * sizeof(SQLWCHAR)), &len);
 		REQUIRE(ret == SQL_SUCCESS);
-		REQUIRE(len == 130);
-		REQUIRE(buf[65] == 0);
+		REQUIRE(len == 134);
+		REQUIRE(buf[67] == 0);
 	}
 
 	SECTION("SQLGetInfo") {
