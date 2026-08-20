@@ -156,28 +156,34 @@ trust-root swap works, verified 2026-08-20 against this fork's build.
 ## CI
 
 - `.github/workflows/ODBC.yml` — build/test matrix (Linux amd64/arm64,
-  Windows amd64/arm64, macOS universal). DuckDB-internal S3 staging Deploy
-  steps and Azure Trusted Signing are removed (Haybarn defers Windows code
-  signing, same as every other client fork).
+  Windows amd64, macOS universal; Windows arm64 defined but disabled, see
+  below). DuckDB-internal S3 staging Deploy steps and Azure Trusted Signing
+  are removed (Haybarn defers Windows code signing, same as every other
+  client fork).
 - Release tags: `haybarn-v<MAJOR>.<MINOR>.<PATCH>.<BUILD>` (e.g.
   `haybarn-v1.5.5.0`), matching the org-wide `haybarn-v*` convention — unlike
   `haybarn-rust`/`haybarn-go`, nothing here forces a bare-tag scheme.
 
-**Known-red leg: `Windows (aarch64)`'s "Test Standard ODBC tests" step.**
-Confirmed 2026-08-20 (run 32326355431): 5/6 legs green (Linux amd64/arm64,
-Debug, macOS, Windows amd64); Windows (aarch64) fails 2/94 test cases —
-`Test Extension` and `Test extension auto-load using Excel extension` — both
-with `HTTP 404` fetching `.../core/v1.5.5/windows_arm64/{httpfs,excel}.duckdb_extension.gz`.
+**`Windows (aarch64)` job is disabled (`if: false`), not deleted.** Confirmed
+2026-08-20 (run 32326355431): 5/6 legs green (Linux amd64/arm64, Debug,
+macOS, Windows amd64); Windows (aarch64) failed 2/94 test cases — `Test
+Extension` and `Test extension auto-load using Excel extension` — both with
+`HTTP 404` fetching `.../core/v1.5.5/windows_arm64/{httpfs,excel}.duckdb_extension.gz`.
 This is **not** an ODBC driver bug: `haybarn-extensions.query.farm` simply has
 no `windows_arm64` core-extension builds published (confirmed via direct
 `curl -I`, 404 vs `windows_amd64`'s 200; `windows_arm64`/`windows-11-arm`
 don't appear anywhere in the engine repo's `haybarn-extensions.yml` build
-matrix — the platform was never added). Fixing this means adding a
-`windows-11-arm` leg to the engine's core-extension build, which is
-project-wide infrastructure work, out of scope for this repo. Leave this leg
-red (don't skip/xfail the tests) until that infrastructure exists — it's
-accurately reporting that `windows_arm64` users can't `INSTALL` core
-extensions yet.
+matrix — the platform was never added). The driver itself builds and
+installs fine on `windows_arm64` (`odbc_install.exe` registers the driver +
+DSN correctly) — only extension downloads fail. Fixing the root cause means
+adding a `windows-11-arm` leg to the engine's core-extension build, which is
+project-wide infrastructure work, out of scope for this repo. The job was
+disabled 2026-08-20 both because it's noise until that infrastructure exists
+and because its failure was blocking `haybarn-publish.yml`'s all-legs-green
+`workflow_run` gate from auto-firing (every release needed a manual
+`workflow_dispatch` re-trigger). **Remove the `if: false`** once
+`windows_arm64` core extensions are published upstream in Haybarn's
+extension repo.
 
 ## Related repos
 
