@@ -13,10 +13,10 @@
 #include <stdbool.h>
 #include <shlobj_core.h>
 
-static const char *driver_name = "DuckDB Driver";
-static const char *data_source_name = "DuckDB";
-static const char *driver_dll = "duckdb_odbc.dll";
-static const char *driver_dl_ls = "duckdb_odbc_setup.dll";
+static const char *driver_name = "Haybarn Driver";
+static const char *data_source_name = "Haybarn";
+static const char *driver_dll = "haybarn_odbc.dll";
+static const char *driver_dl_ls = "haybarn_odbc_setup.dll";
 static const char *duckdb_odbc_ver = "3.0";
 
 // global option do show or not message box, useful on the CI

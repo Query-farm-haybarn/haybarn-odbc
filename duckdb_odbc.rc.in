@@ -10,13 +10,13 @@ BEGIN
     BEGIN
         BLOCK "040904E4"
         BEGIN
-            VALUE "CompanyName", "DuckDB Foundation"
-            VALUE "FileDescription", "DuckDB ODBC Driver"
+            VALUE "CompanyName", "Query Farm LLC"
+            VALUE "FileDescription", "Haybarn ODBC Driver"
             VALUE "FileVersion", "${DUCKDB_WIN_DOT_VERSiON}"
-            VALUE "InternalName", "duckdb_odbc.dll"
-            VALUE "LegalCopyright", "DuckDB Foundation"
-            VALUE "OriginalFilename", "duckdb_odbc.dll"
-            VALUE "ProductName", "DuckDB ODBC Driver"
+            VALUE "InternalName", "haybarn_odbc.dll"
+            VALUE "LegalCopyright", "Query Farm LLC"
+            VALUE "OriginalFilename", "haybarn_odbc.dll"
+            VALUE "ProductName", "Haybarn ODBC Driver"
             VALUE "ProductVersion", "${DUCKDB_WIN_DOT_VERSiON}"
         END
     END

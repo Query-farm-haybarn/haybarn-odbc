@@ -1,4 +1,4 @@
-LIBRARY   duckdb_odbc
+LIBRARY   haybarn_odbc
 EXPORTS
 
 duckdb_adbc_init

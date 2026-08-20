@@ -29,7 +29,7 @@ TEST_CASE("System.Data.ODBC", "test .NET OdbcDataAdapter functionality") {
 	OdbcConnection ^ Conn = nullptr;
 	try {
 
-		System::String ^ connStr = "Driver=DuckDB Driver;Database=test.duckdb;";
+		System::String ^ connStr = "Driver=Haybarn Driver;Database=test.duckdb;";
 		Conn = gcnew OdbcConnection(connStr);
 		Conn->Open();
 
