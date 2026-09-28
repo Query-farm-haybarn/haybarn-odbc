@@ -104,6 +104,7 @@ add_library(haybarn_odbc SHARED ${ALL_OBJECT_FILES})
 target_compile_definitions(haybarn_odbc PRIVATE -DDUCKDB_STATIC_BUILD)
 if(WIN32)
   target_compile_options(haybarn_odbc PRIVATE /bigobj)
+  target_link_libraries(haybarn_odbc crypt32 advapi32 shell32 ole32 winhttp)
 endif()
 
 set_target_properties(haybarn_odbc PROPERTIES DEFINE_SYMBOL "DUCKDB_ODBC_API")
