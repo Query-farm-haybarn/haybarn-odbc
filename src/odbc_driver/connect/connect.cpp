@@ -1,11 +1,12 @@
 #include "connect.hpp"
 
-#include "duckdb/main/db_instance_cache.hpp"
+#include "cupola_connection.hpp"
 #include "duckdb/common/virtual_file_system.hpp"
-
-#include <utility>
-
+#include "duckdb/main/db_instance_cache.hpp"
 #include "session_init.hpp"
+
+#include <set>
+#include <utility>
 
 using namespace duckdb;
 
@@ -83,28 +84,69 @@ SQLRETURN Connect::FindKeyValPair(const std::string &row) {
 }
 
 SQLRETURN Connect::ParseInputStr() {
-	size_t row_pos;
-	std::string row;
-
-	if (input_str.empty()) {
-		return SQL_SUCCESS;
-	}
-
-	while ((row_pos = input_str.find(ROW_DEL)) != std::string::npos) {
-		row = input_str.substr(0, row_pos);
-		SQLRETURN ret = FindKeyValPair(row);
-		if (!SetSuccessWithInfo(ret)) {
-			return ret;
+	// ODBC braced values may contain semicolons and escaped closing braces.
+	std::set<std::string> supplied;
+	bool duplicate = false, unexpected = false;
+	size_t pos = 0;
+	while (pos < input_str.size()) {
+		while (pos < input_str.size() && (input_str[pos] == ';' || isspace((unsigned char)input_str[pos])))
+			pos++;
+		if (pos == input_str.size())
+			break;
+		auto equal = input_str.find('=', pos);
+		if (equal == std::string::npos)
+			return SetDiagnosticRecord(dbc, SQL_ERROR, "SQLDriverConnect", "Invalid ODBC connection string",
+			                           SQLStateType::ST_HY000, "");
+		auto key = StringUtil::Lower(OdbcUtils::TrimString(input_str.substr(pos, equal - pos)));
+		duplicate |= !supplied.insert(key).second;
+		pos = equal + 1;
+		while (pos < input_str.size() && isspace((unsigned char)input_str[pos]))
+			pos++;
+		std::string value;
+		if (pos < input_str.size() && input_str[pos] == '{') {
+			pos++;
+			bool closed = false;
+			while (pos < input_str.size()) {
+				char ch = input_str[pos++];
+				if (ch == '}') {
+					if (pos < input_str.size() && input_str[pos] == '}')
+						pos++;
+					else {
+						closed = true;
+						break;
+					}
+				}
+				value += ch;
+			}
+			while (pos < input_str.size() && isspace((unsigned char)input_str[pos]))
+				pos++;
+			if (!closed || (pos < input_str.size() && input_str[pos] != ';'))
+				return SetDiagnosticRecord(dbc, SQL_ERROR, "SQLDriverConnect", "Invalid ODBC braced value",
+				                           SQLStateType::ST_HY000, "");
+		} else {
+			auto end = input_str.find(';', pos);
+			if (end == std::string::npos)
+				end = input_str.size();
+			value = OdbcUtils::TrimString(input_str.substr(pos, end - pos));
+			pos = end;
 		}
-		input_str.erase(0, row_pos + 1);
-	}
-
-	if (!input_str.empty()) {
-		SQLRETURN ret = FindKeyValPair(input_str);
-		if (!SetSuccessWithInfo(ret)) {
-			return ret;
+		if (key != "driver" && key != "cupolaconnection" &&
+		    !((key == "uid" || key == "pwd" || key == "trusted_connection") && value.empty()))
+			unexpected = true;
+		if (key == "cupolaconnection") {
+			config_map[key] = Value(value);
+			seen_config_options[key] = true;
+			continue;
 		}
+		SQLRETURN ret = FindKeyValPair(key + "=" + value);
+		if (!SetSuccessWithInfo(ret))
+			return ret;
 	}
+	if (seen_config_options["cupolaconnection"] && (duplicate || unexpected))
+		return SetDiagnosticRecord(dbc, SQL_ERROR, "SQLDriverConnect",
+		                           "CupolaConnection cannot be combined with a DSN, database, credentials, duplicate "
+		                           "keys, or other connection options.",
+		                           SQLStateType::ST_HY000, "");
 
 	// Extract the DSN from the config map as it is needed to read from the .odbc.ini file
 	dbc->dsn = GetOptionFromConfigMap("dsn");
@@ -145,6 +187,13 @@ SQLRETURN Connect::SetConnection() {
 #if defined ODBC_LINK_ODBCINST || defined WIN32
 	ReadFromIniFile();
 #endif
+	std::string cupola = GetOptionFromConfigMap("cupolaconnection");
+	if (seen_config_options["cupolaconnection"] && cupola.empty())
+		return SetDiagnosticRecord(dbc, SQL_ERROR, "SQLDriverConnect",
+		                           "CupolaConnection must name an existing connection.", SQLStateType::ST_HY000, "");
+	config_map.erase("cupolaconnection");
+	if (!cupola.empty())
+		config.SetOptionByName("allow_unsigned_extensions", Value(false));
 	std::string database = GetOptionFromConfigMap("database", IN_MEMORY_PATH);
 	dbc->SetDatabaseName(database);
 
@@ -207,6 +256,14 @@ SQLRETURN Connect::SetConnection() {
 		}
 	}
 
+	if (!cupola.empty() && SQL_SUCCEEDED(ret)) {
+		try {
+			AttachCupolaConnection(*dbc->conn, cupola);
+		} catch (std::exception &error) {
+			dbc->conn.reset();
+			return SetDiagnosticRecord(dbc, SQL_ERROR, "SQLDriverConnect", error.what(), SQLStateType::ST_HY000, "");
+		}
+	}
 	return ret;
 }
 
@@ -219,6 +276,7 @@ Connect::Connect(OdbcHandleDbc *dbc_p, string input_str_p) : dbc(dbc_p), input_s
 	}
 
 	// Register ODBC-local options
+	seen_config_options["cupolaconnection"] = false;
 	seen_config_options["database"] = false;
 	seen_config_options["dsn"] = false;
 	seen_config_options[SessionInit::SQL_FILE_OPTION] = false;
