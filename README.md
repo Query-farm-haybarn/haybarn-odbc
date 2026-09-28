@@ -70,3 +70,29 @@ build/debug/test/test_odbc 'Test ALTER TABLE statement'
 Source for the underlying Haybarn engine (DuckDB as modified by Haybarn) is at
 https://github.com/Query-farm-haybarn/haybarn. The original `duckdb-odbc`
 project lives at https://github.com/duckdb/duckdb-odbc.
+
+### Cupola for Excel connections (Windows)
+
+`Driver={Cupola for Excel};CupolaConnection={friendly name};` is a DSN-less
+mode for the Excel integration. Register the built Haybarn DLL under that
+name using Cupola's updater or MSI. Existing Haybarn driver registrations and
+DSNs are not changed. The driver reads the current user's Cupola registry,
+validates the exact identity and HTTPS settings, decrypts the shared DPAPI
+OAuth session in memory, and attaches through the signed VGI extension.
+Ship `vgi.duckdb_extension` alongside the DLL. No credentials are accepted in
+the connection string for this mode. Normal non-Cupola ODBC behavior remains
+available through the existing Haybarn registration.
+
+The connection-scoped `cupola_connection_info()` table macro reports protocol
+version 1 and the resolved name, catalog, endpoint, authentication mode, and
+ATTACH options, without OAuth material. The Excel client compares this with its
+selected connection and confirms a VGI catalog is attached before creating M.
+Errors during ATTACH are fixed messages rather than engine errors that might
+include credentials. `VGI_EXCEL_CONFIG_HOME` selects an isolated store for tests.
+
+Tests: build `test_odbc`, run its `[cupola]` and `Test SQLConnect and
+SQLDriverConnect` filters, then run Cupola's
+`tests/odbc/cupola-connection.ps1` on Windows for registry, DPAPI failure cases,
+and a live HTTPS catalog query. Excel first-use permissions require
+**Default or Custom** authentication with no extra credentials; the driver
+uses Cupola's encrypted session instead of Power Query credentials.
