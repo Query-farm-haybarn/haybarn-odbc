@@ -1,10 +1,9 @@
 #include "connect_helpers.h"
 
 #include <iostream>
+#include <odbcinst.h>
 #include <thread>
 #include <vector>
-
-#include <odbcinst.h>
 
 using namespace odbc_test;
 
@@ -230,7 +229,8 @@ TEST_CASE("Test user_agent - in-memory database", "[odbc][useragent]") {
 	// Execute a simple query
 	EXECUTE_AND_CHECK(
 	    "SQLExecDirect (get user_agent)", hstmt, SQLExecDirect, hstmt,
-	    ConvertToSQLCHAR("SELECT regexp_matches(user_agent, '^haybarn/.*(.*) odbc') FROM pragma_user_agent()"), SQL_NTS);
+	    ConvertToSQLCHAR("SELECT regexp_matches(user_agent, '^haybarn/.*(.*) odbc') FROM pragma_user_agent()"),
+	    SQL_NTS);
 
 	EXECUTE_AND_CHECK("SQLFetch (get user_agent)", hstmt, SQLFetch, hstmt);
 	DATA_CHECK(hstmt, 1, "true");
@@ -256,7 +256,8 @@ TEST_CASE("Test user_agent - named database", "[odbc][useragent]") {
 	// Execute a simple query
 	EXECUTE_AND_CHECK(
 	    "SQLExecDirect (get user_agent)", hstmt, SQLExecDirect, hstmt,
-	    ConvertToSQLCHAR("SELECT regexp_matches(user_agent, '^haybarn/.*(.*) odbc') FROM pragma_user_agent()"), SQL_NTS);
+	    ConvertToSQLCHAR("SELECT regexp_matches(user_agent, '^haybarn/.*(.*) odbc') FROM pragma_user_agent()"),
+	    SQL_NTS);
 
 	EXECUTE_AND_CHECK("SQLFetch (get user_agent)", hstmt, SQLFetch, hstmt);
 	DATA_CHECK(hstmt, 1, "true");
@@ -395,4 +396,39 @@ TEST_CASE("Test connection string without null terminator", "[odbc]") {
 	                  SQL_NTS, nullptr, SQL_DRIVER_COMPLETE);
 
 	DISCONNECT_FROM_DATABASE(env, dbc);
+}
+
+TEST_CASE("Cupola rejects conflicting connection parameters", "[odbc][cupola]") {
+	SQLHANDLE env = SQL_NULL_HANDLE, dbc = SQL_NULL_HANDLE;
+	REQUIRE(SQLAllocHandle(SQL_HANDLE_ENV, nullptr, &env) == SQL_SUCCESS);
+	REQUIRE(SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, ConvertToSQLPOINTER(SQL_OV_ODBC3), 0) == SQL_SUCCESS);
+	REQUIRE(SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc) == SQL_SUCCESS);
+	for (const auto &extra : {"DSN=anything;", "Database=:memory:;", "CupolaConnection=other;", "PWD=secret-fixture;",
+	                          "enable_logging=true;"}) {
+		std::string input = std::string("CupolaConnection={named};") + extra;
+		REQUIRE(SQLDriverConnect(dbc, nullptr, ConvertToSQLCHAR(input), SQL_NTS, nullptr, 0, nullptr,
+		                         SQL_DRIVER_NOPROMPT) == SQL_ERROR);
+		SQLCHAR state[6], message[1024];
+		SQLINTEGER native;
+		SQLSMALLINT length;
+		REQUIRE(SQLGetDiagRec(SQL_HANDLE_DBC, dbc, 1, state, &native, message, sizeof(message), &length) ==
+		        SQL_SUCCESS);
+		REQUIRE(std::string((char *)message).find("secret-fixture") == std::string::npos);
+	}
+	SQLFreeHandle(SQL_HANDLE_DBC, dbc);
+	SQLFreeHandle(SQL_HANDLE_ENV, env);
+}
+
+TEST_CASE("ODBC braced values preserve semicolons and closing braces", "[odbc][cupola]") {
+	SQLHANDLE env = SQL_NULL_HANDLE, dbc = SQL_NULL_HANDLE;
+	REQUIRE(SQLAllocHandle(SQL_HANDLE_ENV, nullptr, &env) == SQL_SUCCESS);
+	REQUIRE(SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, ConvertToSQLPOINTER(SQL_OV_ODBC3), 0) == SQL_SUCCESS);
+	REQUIRE(SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc) == SQL_SUCCESS);
+	std::string input = "Database=:memory:;custom_user_agent={cupola;test}}};";
+	REQUIRE(SQL_SUCCEEDED(
+	    SQLDriverConnect(dbc, nullptr, ConvertToSQLCHAR(input), SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT)));
+	CheckConfig(dbc, "custom_user_agent", "cupola;test}");
+	SQLDisconnect(dbc);
+	SQLFreeHandle(SQL_HANDLE_DBC, dbc);
+	SQLFreeHandle(SQL_HANDLE_ENV, env);
 }
