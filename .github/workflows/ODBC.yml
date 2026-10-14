@@ -555,7 +555,7 @@ jobs:
 
       - name: Check jemalloc
         run: |
-          ! (nm ./build/release/libduckdb_odbc.dylib | grep jemalloc) || exit 1
+          ! (nm ./build/release/libhaybarn_odbc.dylib | grep jemalloc) || exit 1
 
       - name: ODBC Tests
         if: ${{ inputs.skip_tests != 'true' }}

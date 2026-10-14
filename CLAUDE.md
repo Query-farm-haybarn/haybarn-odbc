@@ -8,7 +8,7 @@ Guidance for Claude Code working in this repository.
 [Haybarn](https://github.com/Query-farm-haybarn/haybarn) — an independent
 derived distribution of DuckDB ("Haybarn, powered by DuckDB"), published by
 Query Farm LLC. This repo is a **hard fork** of `duckdb/duckdb-odbc`, based on
-upstream tag **`v1.5.5.0`** (duckdb-odbc's own 4-component
+upstream tag **`v1.5.6.0`** (duckdb-odbc's own 4-component
 `vMAJOR.MINOR.PATCH.BUILD` scheme — the first three mirror the DuckDB engine
 version, the 4th is an independent driver-only patch counter).
 
@@ -103,7 +103,7 @@ SHA=$(git -C ~/Development/haybarn/haybarn rev-parse --short=10 HEAD)
 TMP=$(mktemp -d)/haybarn-engine-jemalloc
 git -C ~/Development/haybarn/haybarn worktree add "$TMP" "$SHA"
 patch -p1 -d "$TMP" < local/vendoring/jemalloc_packaging.patch
-OVERRIDE_GIT_DESCRIBE="v1.5.5-0-g${SHA}" python3 vendor.py --duckdb "$TMP"
+OVERRIDE_GIT_DESCRIBE="v1.5.6-0-g${SHA}" python3 vendor.py --duckdb "$TMP"
 git -C ~/Development/haybarn/haybarn worktree remove "$TMP" --force
 ```
 
@@ -112,7 +112,7 @@ Verify `JEMALLOC_INCLUDE_DIRS`/`JEMALLOC_SRC_FILES` in the regenerated
 only surfaces as a build failure, not a vendor.py error.
 
 The `-0-` (zero commits since the tag) is what makes the version stamp clean
-(`v1.5.5`, not `v1.5.6-devN`) while `DUCKDB_SOURCE_ID` still records the real
+(`v1.5.6`, not `v1.5.7-devN`) while `DUCKDB_SOURCE_ID` still records the real
 commit. Verify:
 
 ```sh
@@ -134,7 +134,7 @@ make release             # -> build/release/libhaybarn_odbc.dylib
 strings -a build/release/libhaybarn_odbc.dylib | grep haybarn-extensions.query.farm
 ```
 Then over a connection (`DSN=Haybarn`): `SELECT version();` should report a
-clean `v1.5.5`-shaped string (a `-dev` string means the re-vendor step above
+clean `v1.5.6`-shaped string (a `-dev` string means the re-vendor step above
 was skipped), and `INSTALL httpfs; LOAD httpfs;` (not one of the 4
 statically-bundled extensions) should succeed and resolve against
 `haybarn-extensions.query.farm`.
@@ -161,7 +161,7 @@ trust-root swap works, verified 2026-08-20 against this fork's build.
   are removed (Haybarn defers Windows code signing, same as every other
   client fork).
 - Release tags: `haybarn-v<MAJOR>.<MINOR>.<PATCH>.<BUILD>` (e.g.
-  `haybarn-v1.5.5.0`), matching the org-wide `haybarn-v*` convention — unlike
+  `haybarn-v1.5.6.0`), matching the org-wide `haybarn-v*` convention — unlike
   `haybarn-rust`/`haybarn-go`, nothing here forces a bare-tag scheme.
 
 **`Windows (aarch64)` job is disabled (`if: false`), not deleted.** Confirmed
