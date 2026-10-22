@@ -8,7 +8,8 @@ Guidance for Claude Code working in this repository.
 [Haybarn](https://github.com/Query-farm-haybarn/haybarn) — an independent
 derived distribution of DuckDB ("Haybarn, powered by DuckDB"), published by
 Query Farm LLC. This repo is a **hard fork** of `duckdb/duckdb-odbc`, based on
-upstream tag **`v1.5.5.0`** (duckdb-odbc's own 4-component
+upstream tag **`v2.0.0.0`** (branch `haybarn-2.0`; the 1.5 line stays on
+`haybarn`) (duckdb-odbc's own 4-component
 `vMAJOR.MINOR.PATCH.BUILD` scheme — the first three mirror the DuckDB engine
 version, the 4th is an independent driver-only patch counter).
 
@@ -76,23 +77,33 @@ dropped on the next re-vendor.
 
 ### Regenerating the vendored source (after an engine bump)
 
-**`OVERRIDE_GIT_DESCRIBE` is mandatory.** The engine reports its version via
-`git describe`, and an rc commit sits *ahead* of the release tag, so a bare
-describe yields a `-dev` version. DuckDB's
-`ExtensionHelper::GetVersionDirectoryName()` then treats the build as a dev
-build and resolves extensions under the **git source id** instead of the
-version directory — which doesn't exist on `haybarn-extensions.query.farm`.
-Stamp the release version instead:
+**`OVERRIDE_GIT_DESCRIBE` is mandatory.** Without it the 2.0 engine's
+`package_build.py` stamps `v2.0.0-devN` (from `scripts/ci/release_version.txt`
+plus a commit count). DuckDB's `ExtensionHelper::GetVersionDirectoryName()`
+then treats the build as a dev build and resolves extensions under the git
+source id instead of `v2.0.0`, which doesn't exist on
+`haybarn-extensions.query.farm`. In 2.0 the variable is taken verbatim (just
+`v`-prefixed), so pass the bare release version.
+
+The 1.5 line needed `local/vendoring/jemalloc_packaging.patch` applied to the
+engine first; the 2.0 engine's `package_build.py` includes
+`third_party/jemalloc` itself and upstream deleted the patch. Still vendor
+from a **disposable `git worktree`** at the release tag, not a shared
+checkout other forks rely on:
 
 ```sh
-cd ~/Development/haybarn/haybarn-odbc
-SHA=$(git -C ~/Development/haybarn/haybarn rev-parse --short=10 HEAD)
-OVERRIDE_GIT_DESCRIBE="v1.5.5-0-g${SHA}" python3 vendor.py --duckdb ~/Development/haybarn/haybarn
+cd ~/Development/haybarn/haybarn-odbc-2.0
+TAG=haybarn-v2.0.0-rc3
+TMP=$(mktemp -d)/haybarn-engine
+git -C ~/Development/haybarn/haybarn worktree add --detach "$TMP" "$TAG"
+rm -rf src/duckdb
+OVERRIDE_GIT_DESCRIBE=v2.0.0 python3 vendor.py --duckdb "$TMP"
+git -C ~/Development/haybarn/haybarn worktree remove "$TMP" --force
 ```
 
-The `-0-` (zero commits since the tag) is what makes the version stamp clean
-(`v1.5.5`, not `v1.5.6-devN`) while `DUCKDB_SOURCE_ID` still records the real
-commit. Verify:
+Verify `JEMALLOC_INCLUDE_DIRS`/`JEMALLOC_SRC_FILES` in the regenerated
+`CMakeLists.txt` are non-empty (Linux needs them; macOS no longer uses
+jemalloc in 2.0) and that `DUCKDB_SOURCE_ID` is the tag's commit. Verify:
 
 ```sh
 grep -E '#define DUCKDB_(VERSION|SOURCE_ID)' src/duckdb/src/function/table/version/pragma_version.cpp
@@ -113,20 +124,56 @@ make release             # -> build/release/libhaybarn_odbc.dylib
 strings -a build/release/libhaybarn_odbc.dylib | grep haybarn-extensions.query.farm
 ```
 Then over a connection (`DSN=Haybarn`): `SELECT version();` should report a
-clean `v1.5.5`-shaped string (a `-dev` string means the re-vendor step above
+clean `v2.0.0` (a `-dev` string means the re-vendor step above
 was skipped), and `INSTALL httpfs; LOAD httpfs;` (not one of the 4
 statically-bundled extensions) should succeed and resolve against
 `haybarn-extensions.query.farm`.
 
+**Negative proof (rejects non-Haybarn-signed extensions) — `allow_unsigned_extensions`
+defaults to `true`, which masks this.** A DuckDB-signed (not Haybarn-signed)
+extension will install and load *successfully* under the default config —
+that's `allow_unsigned_extensions` permitting it through, not a broken trust
+root. To actually observe the rejection, force strict signature checking
+first:
+```sql
+SET allow_unsigned_extensions=false;
+FORCE INSTALL inet FROM 'http://extensions.duckdb.org';
+```
+Expected: `IO Error: Attempting to install an extension file that doesn't
+have a valid signature`. This is the real end-to-end proof the single-key
+trust-root swap works, verified 2026-08-20 against this fork's build.
+
 ## CI
 
 - `.github/workflows/ODBC.yml` — build/test matrix (Linux amd64/arm64,
-  Windows amd64/arm64, macOS universal). DuckDB-internal S3 staging Deploy
-  steps and Azure Trusted Signing are removed (Haybarn defers Windows code
-  signing, same as every other client fork).
+  Windows amd64, Windows arm64, macOS arm64, macOS amd64, Linux debug).
+  DuckDB-internal S3 staging Deploy steps, the vendoring-PR finalisation job
+  and Azure Trusted Signing are removed (Haybarn defers Windows code signing,
+  same as every other client fork). Branch pushes only build, test and upload
+  workflow artifacts; attestations run on `haybarn-v*` tag refs only.
+- `.github/workflows/haybarn-publish.yml` — SHA256SUMS + GPG + GitHub Release,
+  for `haybarn-v2.*` tags only. `workflow_run` always uses the **default
+  branch's** copy, so while `haybarn` (1.5) is the default a 2.0 release is
+  published with
+  `gh workflow run haybarn-publish.yml --ref haybarn-2.0 -f run_id=<ODBC run> -f tag=<tag> -f dry_run=false`.
+  Dispatch defaults to `dry_run=true` (zips, SHA256SUMS, GPG signature and
+  asset check, uploaded as a workflow artifact; no release), so run that
+  first. Client release tags carry the engine's rc number: engine
+  `haybarn-v2.0.0-rc4` → `haybarn-v2.0.0.0-rc4` (a GitHub prerelease).
+  The release is created as a draft and published after every asset is
+  attached (the org enforces immutable releases).
 - Release tags: `haybarn-v<MAJOR>.<MINOR>.<PATCH>.<BUILD>` (e.g.
-  `haybarn-v1.5.5.0`), matching the org-wide `haybarn-v*` convention — unlike
-  `haybarn-rust`/`haybarn-go`, nothing here forces a bare-tag scheme.
+  `haybarn-v2.0.0.0`), matching the org-wide `haybarn-v*` convention.
+
+**Windows arm64.** Upstream's 2.0 `Windows (aarch64)` job cross-compiles on an
+x64 runner and runs no tests, so it is enabled here (on 1.5 it ran the test
+suite on `windows-11-arm` and was disabled). The extension gap behind that is
+still open for 2.0: `core/v2.0.0/` on `haybarn-extensions.query.farm` has
+linux_amd64, linux_arm64, osx_amd64, osx_arm64, windows_amd64,
+windows_amd64_mingw and wasm_{eh,mvp,threads}, but no `windows_arm64` (and no
+musl). The arm64 driver builds and loads, but `INSTALL` of a non-bundled
+extension 404s on that platform until the engine's core-extension build gains
+a `windows_arm64` leg.
 
 ## Related repos
 
