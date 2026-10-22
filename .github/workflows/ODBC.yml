@@ -661,7 +661,8 @@ jobs:
   debug:
     name: Debug Tests
     if: ${{ github.event_name != 'pull_request' || !startsWith(github.head_ref, 'vendoring-') }}
-    runs-on: ${{ github.repository_owner == 'duckdb' && 'namespace-profile-linux-x64' || 'ubuntu-latest' }}
+    # ubuntu-latest moved to 26.04, which has no dotnet-sdk-8.0 apt package.
+    runs-on: ${{ github.repository_owner == 'duckdb' && 'namespace-profile-linux-x64' || 'ubuntu-24.04' }}
     needs: odbc-linux-amd64
     env:
       GEN: ninja
