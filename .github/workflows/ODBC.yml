@@ -21,21 +21,6 @@ on:
             required: false
             default: 'false'
             type: 'string'
-        duckdb_sha:
-            description: 'DuckDB SHA for release event tracking'
-            required: false
-            default: ''
-            type: 'string'
-        duckdb_version:
-            description: 'DuckDB version for release event tracking'
-            required: false
-            default: ''
-            type: 'string'
-        pr_number:
-            description: 'Vendoring PR number to merge after successful CI'
-            required: false
-            default: ''
-            type: 'string'
   workflow_call:
     inputs:
       override_git_describe:
@@ -54,6 +39,12 @@ on:
         default: 'false'
         type: 'string'
   repository_dispatch:
+
+permissions:
+  id-token: write       # OIDC for build-provenance attestation signing
+  attestations: write   # write to the GitHub attestations API
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref || '' }}-${{ github.base_ref || '' }}-${{ (github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/v')) || github.run_id }}
   cancel-in-progress: true
@@ -117,11 +108,11 @@ jobs:
 
       - name: List Symbols
         run: |
-          nm -gU ./build/release/libduckdb_odbc.so
+          nm -gU ./build/release/libhaybarn_odbc.so
 
       - name: Check jemalloc
         run: |
-          nm ./build/release/libduckdb_odbc.so | grep jemalloc || exit 1
+          nm ./build/release/libhaybarn_odbc.so | grep jemalloc || exit 1
 
       - name: ODBC Tests
         if: ${{ inputs.skip_tests != 'true' }}
@@ -137,21 +128,21 @@ jobs:
             /duckdb/build/release/test/test_odbc
           "
 
-      - name: Deploy
-        env:
-          AWS_ENDPOINT_URL: ${{ secrets.S3_DUCKDB_STAGING_ENDPOINT }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.S3_DUCKDB_STAGING_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_DUCKDB_STAGING_KEY }}
+      - name: Package
         run: |
-          zip -j duckdb_odbc-linux-amd64.zip build/release/libduckdb_odbc.so linux_setup/unixodbc_setup.sh linux_setup/update_odbc_path.py
-          ./scripts/upload-assets-to-staging.sh github_release duckdb_odbc-linux-amd64.zip
+          zip -j haybarn_odbc-linux-amd64.zip build/release/libhaybarn_odbc.so linux_setup/unixodbc_setup.sh linux_setup/update_odbc_path.py
+
+      - uses: actions/attest-build-provenance@v2
+        if: startsWith(github.ref, 'refs/tags/haybarn-v')
+        with:
+          subject-path: haybarn_odbc-linux-amd64.zip
 
       - name: Upload    
         uses: actions/upload-artifact@v4
         with:
-          name: odbc-linux-amd64
+          name: haybarn-odbc-linux-amd64
           path: |
-            duckdb_odbc-linux-amd64.zip
+            haybarn_odbc-linux-amd64.zip
 
   odbc-linux-aarch64:
     name: Linux (aarch64)
@@ -209,11 +200,11 @@ jobs:
 
       - name: List Symbols
         run: |
-          nm -gU ./build/release/libduckdb_odbc.so
+          nm -gU ./build/release/libhaybarn_odbc.so
 
       - name: Check jemalloc
         run: |
-          nm ./build/release/libduckdb_odbc.so | grep jemalloc || exit 1
+          nm ./build/release/libhaybarn_odbc.so | grep jemalloc || exit 1
 
       - name: ODBC Tests
         shell: bash
@@ -230,25 +221,27 @@ jobs:
             /duckdb/build/release/test/test_odbc
           "
 
-      - name: Deploy
+      - name: Package
         shell: bash
-        env:
-          AWS_ENDPOINT_URL: ${{ secrets.S3_DUCKDB_STAGING_ENDPOINT }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.S3_DUCKDB_STAGING_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_DUCKDB_STAGING_KEY }}
         run: |
-          zip -j duckdb_odbc-linux-arm64.zip build/release/libduckdb_odbc.so linux_setup/unixodbc_setup.sh linux_setup/update_odbc_path.py
-          ./scripts/upload-assets-to-staging.sh github_release duckdb_odbc-linux-arm64.zip
+          zip -j haybarn_odbc-linux-arm64.zip build/release/libhaybarn_odbc.so linux_setup/unixodbc_setup.sh linux_setup/update_odbc_path.py
+
+      - uses: actions/attest-build-provenance@v2
+        if: startsWith(github.ref, 'refs/tags/haybarn-v')
+        with:
+          subject-path: haybarn_odbc-linux-arm64.zip
 
       - name: Upload    
         uses: actions/upload-artifact@v4
         with:
-          name: odbc-linux-arm64
+          name: haybarn-odbc-linux-arm64
           path: |
-            duckdb_odbc-linux-arm64.zip
+            haybarn_odbc-linux-arm64.zip
 
   odbc-windows-amd64:
     name: Windows (amd64)
+    # Upstream builds on Namespace runners with VS 2022; the fork falls back to
+    # GitHub's windows-latest, which ships VS 2026 (18), hence the vcvars paths.
     if: ${{ github.event_name != 'pull_request' || !startsWith(github.head_ref, 'vendoring-') }}
     runs-on: ${{ github.repository_owner == 'duckdb' && 'namespace-profile-windows-x64' || 'windows-latest' }}
     needs: odbc-linux-amd64
@@ -256,9 +249,6 @@ jobs:
       CC: 'ccache cl'
       CXX: 'ccache cl'
       CCACHE_DIR: ${{ github.workspace }}/ccache
-      AZURE_CODESIGN_ENDPOINT: https://eus.codesigning.azure.net/
-      AZURE_CODESIGN_ACCOUNT: duckdb-signing-2
-      AZURE_CODESIGN_PROFILE: duckdb-certificate-profile
     steps:
       - uses: actions/checkout@v4
         with:
@@ -291,7 +281,7 @@ jobs:
       - name: Build
         shell: cmd
         run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          call "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           mkdir build
           cd build
           mkdir release
@@ -308,17 +298,17 @@ jobs:
       - name: List Symbols
         shell: cmd
         run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          dumpbin.exe /imports build\release\bin\duckdb_odbc.dll
-          dumpbin.exe /exports build\release\bin\duckdb_odbc.dll
+          call "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          dumpbin.exe /imports build\release\bin\haybarn_odbc.dll
+          dumpbin.exe /exports build\release\bin\haybarn_odbc.dll
 
       - name: Setup ODBC
         shell: bash
         run: |
           ./build/release/bin/odbc_install.exe //CI //Install
           Reg Query "HKLM\SOFTWARE\ODBC\ODBC.INI\ODBC Data Sources"
-          Reg Query "HKLM\SOFTWARE\ODBC\ODBC.INI\DuckDB"
-          Reg Query "HKLM\SOFTWARE\ODBC\ODBCINST.INI\DuckDB Driver"
+          Reg Query "HKLM\SOFTWARE\ODBC\ODBC.INI\Haybarn"
+          Reg Query "HKLM\SOFTWARE\ODBC\ODBCINST.INI\Haybarn Driver"
 
       - name: Enable ODBC Trace HKCU
         shell: bash
@@ -356,7 +346,7 @@ jobs:
         run: |
           python ./scripts/create_ini_reg.py
           echo "----------------------------------------------------------------"
-          Reg Query "HKCU\SOFTWARE\ODBC\ODBC.INI\DuckDB"
+          Reg Query "HKCU\SOFTWARE\ODBC\ODBC.INI\Haybarn"
 
       - name: Test Connection ODBC tests
         if: ${{ inputs.skip_tests != 'true' }}
@@ -369,41 +359,29 @@ jobs:
         shell: bash
         run: cat ODBC_TRACE.log
 
-      - name: Sign files with Azure Trusted Signing (TM)
-        if: github.repository == 'duckdb/duckdb-odbc' && github.event_name != 'pull_request'
-        uses: azure/trusted-signing-action@v2
-        with:
-          azure-tenant-id:              ${{ secrets.AZURE_CODESIGN_TENANT_ID }}
-          azure-client-id:              ${{ secrets.AZURE_CODESIGN_CLIENT_ID }}
-          azure-client-secret:          ${{ secrets.AZURE_CODESIGN_CLIENT_SECRET }}
-          endpoint:                     ${{ env.AZURE_CODESIGN_ENDPOINT }}
-          trusted-signing-account-name: ${{ env.AZURE_CODESIGN_ACCOUNT }}
-          certificate-profile-name:     ${{ env.AZURE_CODESIGN_PROFILE }}
-          files-folder:                 ${{ github.workspace }}
-          files-folder-filter:          exe,dll
-          files-folder-recurse:         true
-          file-digest:                  SHA256
-          timestamp-rfc3161:            http://timestamp.acs.microsoft.com
-          timestamp-digest:             SHA256
+      # NOTE: Windows code signing (Azure Trusted Signing) is intentionally not
+      # wired up yet. Add a signing step here over the built haybarn_odbc.dll /
+      # haybarn_odbc_setup.dll / odbc_install.exe when AZURE_CODESIGN_* secrets
+      # are available. Binaries ship with SHA256SUMS + GPG signature instead.
 
-      - name: Deploy
+      - name: Package
         shell: bash
-        env:
-          AWS_ENDPOINT_URL: ${{ secrets.S3_DUCKDB_STAGING_ENDPOINT }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.S3_DUCKDB_STAGING_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_DUCKDB_STAGING_KEY }}
         run: |
-          zip -j duckdb_odbc-windows-amd64.zip        \
-            ./build/release/bin/duckdb_odbc.dll       \
-            ./build/release/bin/duckdb_odbc_setup.dll \
+          zip -j haybarn_odbc-windows-amd64.zip        \
+            ./build/release/bin/haybarn_odbc.dll       \
+            ./build/release/bin/haybarn_odbc_setup.dll \
             ./build/release/bin/odbc_install.exe
-          ./scripts/upload-assets-to-staging.sh github_release duckdb_odbc-windows-amd64.zip
+
+      - uses: actions/attest-build-provenance@v2
+        if: startsWith(github.ref, 'refs/tags/haybarn-v')
+        with:
+          subject-path: haybarn_odbc-windows-amd64.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: odbc-windows-amd64
+          name: haybarn-odbc-windows-amd64
           path: |
-            duckdb_odbc-windows-amd64.zip
+            haybarn_odbc-windows-amd64.zip
 
   odbc-windows-arm64:
     name: Windows (aarch64)
@@ -414,9 +392,6 @@ jobs:
       CC: 'ccache cl'
       CXX: 'ccache cl'
       CCACHE_DIR: ${{ github.workspace }}/ccache
-      AZURE_CODESIGN_ENDPOINT: https://eus.codesigning.azure.net/
-      AZURE_CODESIGN_ACCOUNT: duckdb-signing-2
-      AZURE_CODESIGN_PROFILE: duckdb-certificate-profile
     steps:
       - uses: actions/checkout@v4
         with:
@@ -449,7 +424,7 @@ jobs:
       - name: Build
         shell: cmd
         run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsamd64_arm64.bat"
+          call "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsamd64_arm64.bat"
           mkdir build
           cd build
           mkdir release
@@ -466,45 +441,33 @@ jobs:
       - name: List Symbols
         shell: cmd
         run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsamd64_arm64.bat"
-          dumpbin.exe /imports build\release\bin\duckdb_odbc.dll
-          dumpbin.exe /exports build\release\bin\duckdb_odbc.dll
+          call "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsamd64_arm64.bat"
+          dumpbin.exe /imports build\release\bin\haybarn_odbc.dll
+          dumpbin.exe /exports build\release\bin\haybarn_odbc.dll
 
-      - name: Sign files with Azure Trusted Signing (TM)
-        if: github.repository == 'duckdb/duckdb-odbc' && github.event_name != 'pull_request'
-        uses: azure/trusted-signing-action@v2
-        with:
-          azure-tenant-id:              ${{ secrets.AZURE_CODESIGN_TENANT_ID }}
-          azure-client-id:              ${{ secrets.AZURE_CODESIGN_CLIENT_ID }}
-          azure-client-secret:          ${{ secrets.AZURE_CODESIGN_CLIENT_SECRET }}
-          endpoint:                     ${{ env.AZURE_CODESIGN_ENDPOINT }}
-          trusted-signing-account-name: ${{ env.AZURE_CODESIGN_ACCOUNT }}
-          certificate-profile-name:     ${{ env.AZURE_CODESIGN_PROFILE }}
-          files-folder:                 ${{ github.workspace }}
-          files-folder-filter:          exe,dll
-          files-folder-recurse:         true
-          file-digest:                  SHA256
-          timestamp-rfc3161:            http://timestamp.acs.microsoft.com
-          timestamp-digest:             SHA256
+      # NOTE: Windows code signing (Azure Trusted Signing) is intentionally not
+      # wired up yet. Add a signing step here over the built haybarn_odbc.dll /
+      # haybarn_odbc_setup.dll / odbc_install.exe when AZURE_CODESIGN_* secrets
+      # are available. Binaries ship with SHA256SUMS + GPG signature instead.
 
-      - name: Deploy
+      - name: Package
         shell: bash
-        env:
-          AWS_ENDPOINT_URL: ${{ secrets.S3_DUCKDB_STAGING_ENDPOINT }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.S3_DUCKDB_STAGING_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_DUCKDB_STAGING_KEY }}
         run: |
-          zip -j duckdb_odbc-windows-arm64.zip        \
-            ./build/release/bin/duckdb_odbc.dll       \
-            ./build/release/bin/duckdb_odbc_setup.dll \
+          zip -j haybarn_odbc-windows-arm64.zip        \
+            ./build/release/bin/haybarn_odbc.dll       \
+            ./build/release/bin/haybarn_odbc_setup.dll \
             ./build/release/bin/odbc_install.exe
-          ./scripts/upload-assets-to-staging.sh github_release duckdb_odbc-windows-arm64.zip
+
+      - uses: actions/attest-build-provenance@v2
+        if: startsWith(github.ref, 'refs/tags/haybarn-v')
+        with:
+          subject-path: haybarn_odbc-windows-arm64.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: odbc-windows-arm64
+          name: haybarn-odbc-windows-arm64
           path: |
-            duckdb_odbc-windows-arm64.zip
+            haybarn_odbc-windows-arm64.zip
 
   odbc-macos-arm64:
     name: macOS (arm64)
@@ -565,15 +528,15 @@ jobs:
 
       - name: List Dependencies
         run: |
-          otool -L ./build/release/libduckdb_odbc.dylib
+          otool -L ./build/release/libhaybarn_odbc.dylib
 
       - name: List Symbols
         run: |
-          nm -gU ./build/release/libduckdb_odbc.dylib
+          nm -gU ./build/release/libhaybarn_odbc.dylib
 
       - name: Check jemalloc
         run: |
-          ! (nm ./build/release/libduckdb_odbc.dylib | grep jemalloc) || exit 1
+          ! (nm ./build/release/libhaybarn_odbc.dylib | grep jemalloc) || exit 1
 
       - name: ODBC Tests
         if: ${{ inputs.skip_tests != 'true' }}
@@ -583,22 +546,22 @@ jobs:
 
       - name: Check architecture
         shell: bash
-        run: test "$(lipo -archs build/release/libduckdb_odbc.dylib)" = "arm64"
+        run: test "$(lipo -archs build/release/libhaybarn_odbc.dylib)" = "arm64"
 
-      - name: Deploy
-        env:
-          AWS_ENDPOINT_URL: ${{ secrets.S3_DUCKDB_STAGING_ENDPOINT }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.S3_DUCKDB_STAGING_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_DUCKDB_STAGING_KEY }}
+      - name: Package
         run: |
-          zip -j duckdb_odbc-macos-arm64.zip build/release/libduckdb_odbc.dylib
-          ./scripts/upload-assets-to-staging.sh github_release duckdb_odbc-macos-arm64.zip
+          zip -j haybarn_odbc-macos-arm64.zip build/release/libhaybarn_odbc.dylib
+
+      - uses: actions/attest-build-provenance@v2
+        if: startsWith(github.ref, 'refs/tags/haybarn-v')
+        with:
+          subject-path: haybarn_odbc-macos-arm64.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: odbc-macos-arm64
+          name: haybarn-odbc-macos-arm64
           path: |
-            duckdb_odbc-macos-arm64.zip
+            haybarn_odbc-macos-arm64.zip
 
   odbc-macos-amd64:
     name: macOS (amd64)
@@ -660,15 +623,15 @@ jobs:
 
       - name: List Dependencies
         run: |
-          otool -L ./build/release/libduckdb_odbc.dylib
+          otool -L ./build/release/libhaybarn_odbc.dylib
 
       - name: List Symbols
         run: |
-          nm -gU ./build/release/libduckdb_odbc.dylib
+          nm -gU ./build/release/libhaybarn_odbc.dylib
 
       - name: Check jemalloc
         run: |
-          ! (nm ./build/release/libduckdb_odbc.dylib | grep jemalloc) || exit 1
+          ! (nm ./build/release/libhaybarn_odbc.dylib | grep jemalloc) || exit 1
 
       - name: ODBC Tests
         if: ${{ inputs.skip_tests != 'true' }}
@@ -678,22 +641,22 @@ jobs:
 
       - name: Check architecture
         shell: bash
-        run: test "$(lipo -archs build/release/libduckdb_odbc.dylib)" = "x86_64"
+        run: test "$(lipo -archs build/release/libhaybarn_odbc.dylib)" = "x86_64"
 
-      - name: Deploy
-        env:
-          AWS_ENDPOINT_URL: ${{ secrets.S3_DUCKDB_STAGING_ENDPOINT }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.S3_DUCKDB_STAGING_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_DUCKDB_STAGING_KEY }}
+      - name: Package
         run: |
-          zip -j duckdb_odbc-macos-amd64.zip build/release/libduckdb_odbc.dylib
-          ./scripts/upload-assets-to-staging.sh github_release duckdb_odbc-macos-amd64.zip
+          zip -j haybarn_odbc-macos-amd64.zip build/release/libhaybarn_odbc.dylib
+
+      - uses: actions/attest-build-provenance@v2
+        if: startsWith(github.ref, 'refs/tags/haybarn-v')
+        with:
+          subject-path: haybarn_odbc-macos-amd64.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: odbc-macos-amd64
+          name: haybarn-odbc-macos-amd64
           path: |
-            duckdb_odbc-macos-amd64.zip
+            haybarn_odbc-macos-amd64.zip
 
   debug:
     name: Debug Tests
@@ -798,66 +761,3 @@ jobs:
         shell: bash
         working-directory: ./test/tests/dotnet-linux
         run: dotnet run
-
-  odbc-finalize-vendoring:
-    name: Finalize vendoring
-    if: ${{ always() && github.repository == 'duckdb/duckdb-odbc' && github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/heads/vendoring-') && inputs.pr_number != '' && inputs.duckdb_sha != '' }}
-    needs:
-      - odbc-linux-amd64
-      - odbc-linux-aarch64
-      - odbc-windows-amd64
-      - odbc-windows-arm64
-      - odbc-macos-arm64
-      - odbc-macos-amd64
-      - debug
-    runs-on: ${{ github.repository_owner == 'duckdb' && 'namespace-profile-linux-slim' || 'ubuntu-latest' }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Merge vendoring PR
-        id: merge_vendoring_pr
-        if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && !contains(needs.*.result, 'skipped') }}
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-            BASE_BRANCH=$(gh pr view ${{ inputs.pr_number }} --json baseRefName --jq '.baseRefName')
-            PR_TITLE=$(gh pr view ${{ inputs.pr_number }} --json title --jq '.title')
-            echo "Merging PR number: ${{ inputs.pr_number }} with message: ${PR_TITLE}"
-            gh pr merge ${{ inputs.pr_number }} \
-             --rebase \
-             --subject "${PR_TITLE}" \
-             --body ""
-            echo "base_branch=${BASE_BRANCH}" >> "${GITHUB_OUTPUT}"
-
-      - name: Update vendoring branch
-        id: update_vendoring_branch
-        if: ${{ steps.merge_vendoring_pr.outcome == 'success' }}
-        continue-on-error: true
-        run: |
-            BASE_BRANCH="${{ steps.merge_vendoring_pr.outputs.base_branch }}"
-            git checkout --track origin/${BASE_BRANCH}
-            git pull --ff-only
-            # Delete vendoring-${BASE_BRANCH} branch and re-create it for future PRs
-            git push --delete origin vendoring-${BASE_BRANCH}
-            git branch -D vendoring-${BASE_BRANCH}
-            git branch vendoring-${BASE_BRANCH}
-            git push origin vendoring-${BASE_BRANCH}
-
-      - name: Record client status
-        if: always()
-        uses: duckdb/duckdb-workflow-trigger/dispatch@main
-        with:
-          github_token: ${{ secrets.DUCKDB_RELEASE_DISPATCH_TOKEN }}
-          event: client_ready
-          client: odbc
-          duckdb_version: ${{ inputs.duckdb_version }}
-          duckdb_commit: ${{ inputs.duckdb_sha }}
-          status: ${{ (contains(needs.*.result, 'failure') || steps.merge_vendoring_pr.outcome == 'failure') && 'failure' || contains(needs.*.result, 'cancelled') && 'cancelled' || contains(needs.*.result, 'skipped') && 'skipped' || 'success' }}
-          message: DuckDB ODBC client ready
-
-      - name: Fail on unsuccessful final status
-        if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') || steps.merge_vendoring_pr.outcome == 'failure' || steps.update_vendoring_branch.outcome == 'failure') }}
-        run: exit 1
