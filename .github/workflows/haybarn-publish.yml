@@ -28,6 +28,10 @@ on:
         description: 'Release tag to publish (e.g. haybarn-v2.0.0.0)'
         type: string
         required: true
+      dry_run:
+        description: 'Assemble, checksum, sign and check the assets but create no release'
+        type: boolean
+        default: true
 
 permissions:
   contents: write   # create the GitHub Release
@@ -134,9 +138,37 @@ jobs:
             --passphrase "$HAYBARN_GPG_PASSPHRASE" \
             --armor --detach-sign --output release/SHA256SUMS.asc release/SHA256SUMS
 
+      # Exactly one zip per ODBC.yml platform leg, the checksums and their
+      # signature; nothing named after DuckDB.
+      - name: Check release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="SHA256SUMS
+          SHA256SUMS.asc
+          haybarn_odbc-linux-amd64.zip
+          haybarn_odbc-linux-arm64.zip
+          haybarn_odbc-macos-amd64.zip
+          haybarn_odbc-macos-arm64.zip
+          haybarn_odbc-windows-amd64.zip
+          haybarn_odbc-windows-arm64.zip"
+          actual=$(cd release && find . -type f | sed 's|^\./||' | LC_ALL=C sort)
+          diff <(printf '%s\n' "$expected" | sed 's/^ *//') <(printf '%s\n' "$actual")
+          (cd release && sha256sum -c SHA256SUMS)
+          gpg --batch --verify release/SHA256SUMS.asc release/SHA256SUMS
+
+      - name: Upload dry-run assets
+        if: inputs.dry_run == true
+        uses: actions/upload-artifact@v4
+        with:
+          name: haybarn-odbc-release-dry-run
+          path: release/
+
       # The org enforces immutable releases: assets must be attached while the
       # release is a draft, so create it as a draft, upload, check, publish.
+      # workflow_run has no inputs, so it always publishes.
       - name: Create GitHub Release
+        if: inputs.dry_run != true
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
