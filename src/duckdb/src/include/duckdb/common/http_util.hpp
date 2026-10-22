@@ -7,5 +7,5 @@
 
 #pragma once
 
-// Compatibility header for existing extensions.
+// Compatibility forwarding header; HTTP interfaces now live under main/http.
 #include "duckdb/main/http/http_util.hpp"

@@ -1580,32 +1580,11 @@ static constexpr ExtensionEntry EXTENSION_LOG_TYPES[] = {
     {"Iceberg", "iceberg"},   {"PostgresQueryLog", "postgres_scanner"}, {"Quack", "quack"},
 }; // END_OF_EXTENSION_LOG_TYPES
 
-static constexpr const char *AUTOLOADABLE_EXTENSIONS[] = {"autocomplete",
-                                                          "avro",
-                                                          "aws",
-                                                          "azure",
-                                                          "core_functions",
-                                                          "delta",
-                                                          "ducklake",
-                                                          "encodings",
-                                                          "excel",
-                                                          "fts",
-                                                          "httpfs",
-                                                          "iceberg",
-                                                          "icu",
-                                                          "inet",
-                                                          "json",
-                                                          "legacy_parser",
-                                                          "motherduck",
-                                                          "mysql_scanner",
-                                                          "parquet",
-                                                          "postgres_scanner",
-                                                          "quack",
-                                                          "sqlite_scanner",
-                                                          "sqlsmith",
-                                                          "tpcds",
-                                                          "tpch",
-                                                          "ui",
-                                                          "unity_catalog"}; // END_OF_AUTOLOADABLE_EXTENSIONS
+// Haybarn: motherduck is not advertised as an autoloadable extension.
+static constexpr const char *AUTOLOADABLE_EXTENSIONS[] = {
+    "autocomplete", "avro",          "aws",           "azure",   "core_functions",   "delta", "ducklake",
+    "encodings",    "excel",         "fts",           "httpfs",  "iceberg",          "icu",   "inet",
+    "json",         "legacy_parser", "mysql_scanner", "parquet", "postgres_scanner", "quack", "sqlite_scanner",
+    "sqlsmith",     "tpcds",         "tpch",          "ui",      "unity_catalog"}; // END_OF_AUTOLOADABLE_EXTENSIONS
 
 } // namespace duckdb

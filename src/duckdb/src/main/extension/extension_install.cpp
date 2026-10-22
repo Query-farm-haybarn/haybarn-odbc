@@ -66,11 +66,15 @@ string ExtensionHelper::ExtensionInstallDocumentationLink(const string &extensio
 vector<duckdb::string> ExtensionHelper::DefaultExtensionFolders(FileSystem &fs) {
 	vector<duckdb::string> default_folders;
 // These fallbacks are necessary if the user doesn't use the CMake build.
+// Haybarn: extension cache dir is ~/.haybarn/extensions/ — clean break from
+// upstream's ~/.duckdb/extensions/ (DuckDB-signed extensions wouldn't verify
+// against the Haybarn trust root anyway, so reusing the same path would
+// only confuse users by leaving stale, unloadable files behind).
 #ifndef DUCKDB_EXTENSION_DIRECTORIES
 #ifdef _WIN32
-#define DUCKDB_EXTENSION_DIRECTORIES "~\\.duckdb\\extensions"
+#define DUCKDB_EXTENSION_DIRECTORIES "~\\.haybarn\\extensions"
 #else
-#define DUCKDB_EXTENSION_DIRECTORIES "~/.duckdb/extensions"
+#define DUCKDB_EXTENSION_DIRECTORIES "~/.haybarn/extensions"
 #endif
 #endif
 	string dirs_string(DUCKDB_EXTENSION_DIRECTORIES);
@@ -219,8 +223,16 @@ string ExtensionHelper::ExtensionUrlTemplate(optional_ptr<const DatabaseInstance
                                              const ExtensionRepository &repository, const string &version) {
 	string versioned_path;
 	if (!version.empty()) {
-		versioned_path = "/${NAME}/" + version + "/${REVISION}/${PLATFORM}/${NAME}.duckdb_extension";
+		// Haybarn: pinned installs resolve to the per-build immutable object, whose key is
+		//   <repository>/<engine-version>/<platform>/<name>/<ext-commit-short>/<name>.duckdb_extension
+		// Note the segment order differs from upstream DuckDB (which puts name/version ahead
+		// of the engine revision): the Haybarn extension buckets are laid out revision-first so
+		// every artifact for one engine build — the mutable "latest" slot below, the immutable
+		// per-build directories, and the signed current.json pointer beside them — lives under a
+		// single prefix. See haybarn-extension-ci-tools scripts/publish/publish_extensions.py.
+		versioned_path = "/${REVISION}/${PLATFORM}/${NAME}/" + version + "/${NAME}.duckdb_extension";
 	} else {
+		// Unpinned: the mutable "latest" single-slot path.
 		versioned_path = "/${REVISION}/${PLATFORM}/${NAME}.duckdb_extension";
 	}
 #ifdef WASM_LOADABLE_EXTENSIONS

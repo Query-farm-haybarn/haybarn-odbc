@@ -101,8 +101,54 @@ bool Binder::BindTableFunctionParameters(TableFunctionCatalogEntry &table_functi
                                          BoundStatement &subquery, bool &table_in_out, ErrorData &error) {
 	auto bind_type = GetTableFunctionBindType(table_function, expressions);
 	if (bind_type == TableFunctionBindType::TABLE_IN_OUT_FUNCTION) {
-		// bind table in-out function - its arguments are the columns of the subquery, so there is nothing to fold
-		BindTableInTableOutFunction(expressions, subquery);
+		// [Haybarn] Extract inline named parameters (name := value / name => value)
+		// BEFORE sweeping the remaining POSITIONAL expressions into the input
+		// subquery. Without this, a named argument in the column/LATERAL form (e.g.
+		// FROM t, f(t.x, t.y, opt := 5)) is swept into SELECT t.x, t.y, 5 AS opt and
+		// becomes a phantom input column, so no overload matches. Named args are
+		// constants (no correlation concern). A SUBQUERY
+		// child is always the TABLE input (classic table-in-out), never a named arg.
+		vector<unique_ptr<ParsedExpression>> positional_exprs;
+		for (auto &child : expressions) {
+			Identifier parameter_name;
+			if (child->GetExpressionType() != ExpressionType::SUBQUERY) {
+				if (child->GetExpressionType() == ExpressionType::COMPARE_EQUAL) {
+					auto &comp = child->Cast<ComparisonExpression>();
+					if (comp.Left().GetExpressionType() == ExpressionType::COLUMN_REF) {
+						auto &colref = comp.Left().Cast<ColumnRefExpression>();
+						if (!colref.IsQualified()) {
+							parameter_name = colref.GetColumnName();
+							child = std::move(comp.RightMutable());
+						}
+					}
+				} else if (!child->GetAlias().empty()) {
+					// <name> => <expression> sets the alias of <expression> to <name>.
+					// (An input column carrying an AS alias is indistinguishable here
+					// and is therefore treated as a named arg — column-input args in
+					// the column form must not carry AS aliases.)
+					parameter_name = child->GetAlias();
+				}
+			}
+			if (parameter_name.empty()) {
+				positional_exprs.push_back(std::move(child));
+				continue;
+			}
+			TableFunctionBinder param_binder(*this, context, table_function.name.GetIdentifierName());
+			LogicalType sql_type;
+			auto expr = param_binder.Bind(child, &sql_type);
+			if (expr->HasParameter()) {
+				throw ParameterNotResolvedException();
+			}
+			if (!expr->IsScalar()) {
+				throw BinderException(
+				    "Named parameter \"%s\" of table function \"%s\" must be a constant (it cannot reference an "
+				    "input column)",
+				    parameter_name.GetIdentifierName(), table_function.name.GetIdentifierName());
+			}
+			named_arguments.emplace_back(parameter_name, std::move(expr));
+		}
+		// bind table in-out function over the remaining positional expressions
+		BindTableInTableOutFunction(positional_exprs, subquery);
 		table_in_out = true;
 		return true;
 	}
@@ -482,7 +528,8 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
 	vector<Value> parameters;
 	named_argument_map_t named_parameters;
 	auto best_function_idx =
-	    table_in_out ? function_binder.BindTableInOutFunction(function.name, function.functions, subquery.types, error)
+	    table_in_out ? function_binder.BindTableInOutFunction(function.name, function.functions, subquery.types,
+	                                                          named_arguments, named_parameters, error)
 	                 : function_binder.BindFunction(function.name, function.functions, positional_arguments,
 	                                                named_arguments, parameters, named_parameters, error);
 	if (!best_function_idx.IsValid()) {

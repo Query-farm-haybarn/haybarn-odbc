@@ -1,7 +1,6 @@
 #include "duckdb/parser/parsed_data/load_info.hpp"
 #include "duckdb/common/enum_util.hpp"
 #include "duckdb/common/string_util.hpp"
-#include "duckdb/parser/keyword_helper.hpp"
 
 namespace duckdb {
 
@@ -93,6 +92,9 @@ string LoadInfo::ToString() const {
 		} else {
 			result += " FROM " + SQLString(repository);
 		}
+	}
+	if (!version.empty()) {
+		result += " VERSION " + SQLString(version);
 	}
 	if (!alias.empty()) {
 		result += " AS " + SQLIdentifier(alias);

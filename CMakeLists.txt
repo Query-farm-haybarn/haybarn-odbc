@@ -203,6 +203,7 @@ set(DUCKDB_SRC_FILES
   src/duckdb/src/main/capi/v1/threading-c.cpp
   src/duckdb/src/main/capi/v1/value-c.cpp
   src/duckdb/src/main/extension/extension_alias.cpp
+  src/duckdb/src/main/extension/extension_discovery.cpp
   src/duckdb/src/main/extension/extension_helper.cpp
   src/duckdb/src/main/extension/extension_install.cpp
   src/duckdb/src/main/extension/extension_install_dynamic.cpp

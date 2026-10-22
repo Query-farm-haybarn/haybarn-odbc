@@ -71,7 +71,7 @@ static void WriteExtensionMetadataFileToDisk(FileSystem &fs, const string &path,
 static void CheckExtensionMetadataOnInstall(DatabaseInstance &db, void *in_buffer, idx_t file_size,
                                             ExtensionInstallInfo &info, const string &extension_name) {
 	if (file_size < ParsedExtensionMetaData::FOOTER_SIZE) {
-		throw IOException("Failed to install '%s', file too small to be a valid DuckDB extension!", extension_name);
+		throw IOException("Failed to install '%s', file too small to be a valid Haybarn extension!", extension_name);
 	}
 
 	auto parsed_metadata = ExtensionHelper::ParseExtensionMetaData(static_cast<char *>(in_buffer) +
@@ -194,6 +194,8 @@ static unique_ptr<ExtensionInstallInfo> DirectInstallExtension(DatabaseInstance 
 		info.repository_name = options.repository->name;
 	}
 
+	info.pinned_version = options.version;
+
 	QueryContext query_context(context);
 	WriteExtensionFiles(query_context, fs, temp_path, local_extension_path, extension_decompressed,
 	                    extension_decompressed_size, info, db);
@@ -313,7 +315,7 @@ InstallFromHttpUrl(DatabaseInstance &db, const string &url, const string &extens
 			                  message, response->GetRequestError());
 		}
 		// if this was not a request error this means the server responded - report the response status and response
-		throw HTTPException(*response, "Failed to download extension \"%s\" at URL \"%s\" (HTTP %n)\n%s",
+		throw HTTPException(*response, "Failed to download extension \"%s\" at URL \"%s\" (HTTP %d)\n%s",
 		                    extension_name, url, int(response->status), message);
 	}
 	if (response->status == HTTPStatusCode::NotModified_304 && install_info) {
@@ -349,6 +351,8 @@ InstallFromHttpUrl(DatabaseInstance &db, const string &url, const string &extens
 		info.mode = ExtensionInstallMode::CUSTOM_PATH;
 		info.full_path = download_url;
 	}
+
+	info.pinned_version = options.version;
 
 	QueryContext query_context(context);
 	auto fs = FileSystem::CreateLocal();
@@ -415,6 +419,35 @@ static void ThrowErrorOnMismatchingExtensionOrigin(FileSystem &fs, const string 
 	}
 }
 
+//! Haybarn: refuse a non-forced install that would move an extension on or off a version pin.
+//! Requesting the pin an extension is already on is a no-op (the install is idempotent), and a
+//! bare INSTALL of a pinned extension leaves the pin alone — upstream's "already installed,
+//! nothing to do". Anything else is a conflict the user has to resolve explicitly, because
+//! silently keeping the old binary is how a pin gets believed but not applied.
+static void ThrowErrorOnMismatchingExtensionPin(FileSystem &fs, const string &local_extension_path,
+                                                const string &extension_name, const string &requested_version) {
+	if (requested_version.empty()) {
+		return;
+	}
+	auto install_info = ExtensionInstallInfo::TryReadInfoFile(fs, local_extension_path + ".info", extension_name);
+	if (!install_info || install_info->pinned_version == requested_version) {
+		return;
+	}
+	if (install_info->pinned_version.empty()) {
+		throw InvalidInputException(
+		    "Installing extension '%s' failed. The extension is already installed, unpinned, while the "
+		    "extension to be installed is pinned to version '%s'.\n"
+		    "To solve this rerun this command with `FORCE INSTALL`",
+		    extension_name, requested_version);
+	}
+	throw InvalidInputException("Installing extension '%s' failed. The extension is already installed "
+	                            "but pinned to a different version.\n"
+	                            "Currently installed extension is pinned to version '%s', while the extension "
+	                            "to be installed is pinned to version '%s'.\n"
+	                            "To solve this rerun this command with `FORCE INSTALL`",
+	                            extension_name, install_info->pinned_version, requested_version);
+}
+
 unique_ptr<ExtensionInstallInfo> InstallExternalExtension(DatabaseInstance &db, FileSystem &fs,
                                                           const string &local_path, const string &extension,
                                                           ExtensionInstallOptions &options,
@@ -452,6 +485,8 @@ unique_ptr<ExtensionInstallInfo> InstallExternalExtension(DatabaseInstance &db, 
 	    local_extension_path + ".tmp-" + UUID::ToString(UUID::GenerateRandomUUID()) + ".duckdb_extension";
 
 	if (fs.FileExists(local_extension_path) && !options.force_install) {
+		ThrowErrorOnMismatchingExtensionPin(fs, local_extension_path, extension_name, options.version);
+
 		// File exists: throw error if origin mismatches
 		if (options.throw_on_origin_mismatch && !Settings::Get<AllowExtensionsMetadataMismatchSetting>(db) &&
 		    fs.FileExists(local_extension_path + ".info")) {

@@ -546,10 +546,11 @@ template <class T>
 static void PlaceArguments(ClientContext &context, const T &function,
                            vector<unique_ptr<Expression>> &positional_arguments,
                            vector<pair<Identifier, unique_ptr<Expression>>> &named_arguments, vector<Value> &parameters,
-                           named_argument_map_t &named_parameters) {
+                           named_argument_map_t &named_parameters, optional_idx input_column_count = optional_idx()) {
 	auto &signature = function.GetSignature();
 	const auto positional_count = signature.GetPositionalParameterCount();
-	const auto passed_count = positional_arguments.size();
+	const auto passed_count =
+	    input_column_count.IsValid() ? input_column_count.GetIndex() : positional_arguments.size();
 
 	// the positional parameters the caller filled by name, by parameter index
 	vector<optional_ptr<Expression>> named_slots(positional_count);
@@ -610,7 +611,17 @@ static void PlaceArguments(ClientContext &context, const T &function,
 			                      named_argument.second->ToString(), argument_name,
 			                      function.GetName().GetIdentifierName());
 		}
+		if (input_column_count.IsValid()) {
+			throw BinderException("Named argument %s cannot fill an input column of table-in/out function %s",
+			                      argument_name, function.GetName().GetIdentifierName());
+		}
 		named_slots[param_idx.GetIndex()] = *named_argument.second;
+	}
+
+	if (input_column_count.IsValid()) {
+		// Table-in/out positional arguments are input columns, not constants to evaluate here.
+		signature.FillNamedDefaults(context, named_parameters);
+		return;
 	}
 
 	for (idx_t i = 0; i < positional_count; i++) {
@@ -656,6 +667,23 @@ optional_idx FunctionBinder::BindFunction(const Identifier &name, const TableFun
 optional_idx FunctionBinder::BindTableInOutFunction(const Identifier &name, const TableFunctionSet &functions,
                                                     const vector<LogicalType> &input_types, ErrorData &error) {
 	return BindFunctionFromArguments(name, functions, input_types, {}, error);
+}
+
+optional_idx FunctionBinder::BindTableInOutFunction(const Identifier &name, const TableFunctionSet &functions,
+                                                    const vector<LogicalType> &input_types,
+                                                    vector<pair<Identifier, unique_ptr<Expression>>> &named_arguments,
+                                                    named_argument_map_t &named_parameters, ErrorData &error) {
+	VerifyNamedArgumentsAccepted(name, functions, named_arguments);
+	vector<unique_ptr<Expression>> positional_arguments;
+	auto argument_types = GetArgumentsFromExpressions(positional_arguments, named_arguments);
+	auto entry = BindFunctionFromArguments(name, functions, input_types, argument_types.second, error);
+	if (!entry.IsValid()) {
+		return entry;
+	}
+	vector<Value> parameters;
+	PlaceArguments(context, *functions.GetFunctionByOffset(entry.GetIndex()), positional_arguments, named_arguments,
+	               parameters, named_parameters, optional_idx(input_types.size()));
+	return entry;
 }
 
 optional_idx FunctionBinder::BindFunction(const Identifier &name, const PragmaFunctionSet &functions,

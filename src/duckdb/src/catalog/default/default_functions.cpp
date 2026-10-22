@@ -80,7 +80,9 @@ static const DefaultMacro internal_macros[] = {
      "(constraint_oid) AS (select constraint_text from duckdb_constraints() d_constraint where "
      "d_constraint.table_oid=constraint_oid//1000000 and d_constraint.constraint_index=constraint_oid%1000000), "
      "(constraint_oid, pretty_bool) AS pg_get_constraintdef(constraint_oid)"},
-    {"pg_catalog", "pg_get_expr", "(pg_node_tree, relation_oid) AS pg_node_tree"},
+    {"pg_catalog", "pg_get_expr",
+     "(pg_node_tree, relation_oid) AS pg_node_tree, "
+     "(pg_node_tree, relation_oid, pretty_bool) AS pg_node_tree"},
     {"pg_catalog", "format_pg_type",
      "(logical_type, type_name) AS case upper(logical_type) when 'FLOAT' then 'float4' when 'DOUBLE' then 'float8' "
      "when 'DECIMAL' then 'numeric' when 'ENUM' then lower(type_name) when 'VARCHAR' then 'varchar' when 'BLOB' then "
@@ -88,8 +90,10 @@ static const DefaultMacro internal_macros[] = {
      "'timestamptz' when 'TIME WITH TIME ZONE' then 'timetz' when 'SMALLINT' then 'int2' when 'INTEGER' then 'int4' "
      "when 'BIGINT' then 'int8' when 'BOOLEAN' then 'bool' else lower(logical_type) end"},
     {"pg_catalog", "format_type",
-     "(type_oid, typemod) AS (select format_pg_type(logical_type, type_name) from duckdb_types() t where "
-     "t.type_oid=type_oid) || case when typemod>0 then concat('(', typemod//1000, ',', typemod%1000, ')') else '' end"},
+     "(type_oid, typemod) AS COALESCE((select format_pg_type(logical_type, type_name) from duckdb_types() t where "
+     "map_to_pg_oid(t.type_name)=type_oid limit 1), (select format_pg_type(logical_type, type_name) from "
+     "duckdb_types() t where t.type_oid=type_oid limit 1)) || case when typemod>0 then concat('(', typemod//1000, "
+     "',', typemod%1000, ')') else '' end"},
     {"pg_catalog", "map_to_pg_oid",
      "(type_name) AS case type_name when 'bool' then 16 when 'int16' then 21 when 'int' then 23 when 'bigint' then 20 "
      "when 'date' then 1082 when 'time' then 1083 when 'datetime' then 1114 when 'dec' then 1700 when 'float' then 700 "
@@ -123,6 +127,22 @@ static const DefaultMacro internal_macros[] = {
 
     {"pg_catalog", "pg_size_pretty", "(bytes) AS format_bytes(bytes)"},
     {"pg_catalog", "pg_sleep", "(seconds) AS sleep_ms(CAST(seconds * 1000 AS BIGINT))"},
+
+    // PostgreSQL clients call these while expanding catalog objects. DuckDB
+    // cannot reproduce every PostgreSQL statistic or DDL function, so return
+    // stable compatibility values rather than failing catalog discovery.
+    {"pg_catalog", "pg_relation_size", "(relation_oid) AS 0::bigint, (relation_oid, fork) AS 0::bigint"},
+    {"pg_catalog", "pg_total_relation_size", "(relation_oid) AS 0::bigint"},
+    {"pg_catalog", "pg_table_size", "(relation_oid) AS 0::bigint"},
+    {"pg_catalog", "pg_indexes_size", "(relation_oid) AS 0::bigint"},
+    {"pg_catalog", "pg_stat_get_numscans", "(relation_oid) AS 0::bigint"},
+    {"pg_catalog", "pg_get_indexdef",
+     "(index_oid) AS '', (index_oid, column_no, pretty_bool) AS ''"},
+    {"pg_catalog", "pg_get_triggerdef",
+     "(trigger_oid) AS '', (trigger_oid, pretty_bool) AS ''"},
+    {"pg_catalog", "pg_get_ruledef", "(rule_oid) AS '', (rule_oid, pretty_bool) AS ''"},
+    {"pg_catalog", "pg_get_userbyid", "(role_oid) AS 'postgres'"},
+    {"pg_catalog", "pg_encoding_to_char", "(encoding) AS 'UTF8'"},
 
     {DEFAULT_SCHEMA, "nullif", "(a, b) AS CASE WHEN a=b THEN NULL ELSE a END"},
     {DEFAULT_SCHEMA, "if", "(a, b, c) AS CASE WHEN a THEN b ELSE c END"},

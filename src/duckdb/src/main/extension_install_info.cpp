@@ -26,7 +26,6 @@ struct KnownExtensionRepository {
 
 static constexpr const KnownExtensionRepository KNOWN_REPOSITORIES[] = {
     {"core", ExtensionRepository::CORE_REPOSITORY_URL, ExtensionRepositoryType::CORE},
-    {"core_nightly", ExtensionRepository::CORE_NIGHTLY_REPOSITORY_URL, ExtensionRepositoryType::CORE},
     {"community", ExtensionRepository::COMMUNITY_REPOSITORY_URL, ExtensionRepositoryType::COMMUNITY},
     {"local_build_debug", ExtensionRepository::BUILD_DEBUG_REPOSITORY_PATH, ExtensionRepositoryType::CORE},
     {"local_build_release", ExtensionRepository::BUILD_RELEASE_REPOSITORY_PATH, ExtensionRepositoryType::CORE},
@@ -80,9 +79,7 @@ string ExtensionRepository::TryGetBackupRepositoryUrl(const string &url) {
 }
 
 bool ExtensionRepository::IsOfficialRepositoryUrl(const string &url) {
-	static constexpr const char *OFFICIAL_REPOSITORY_URLS[] = {CORE_REPOSITORY_URL, CORE_NIGHTLY_REPOSITORY_URL,
-	                                                           COMMUNITY_REPOSITORY_URL, CORE_BACKUP_REPOSITORY_URL,
-	                                                           COMMUNITY_BACKUP_REPOSITORY_URL};
+	static constexpr const char *OFFICIAL_REPOSITORY_URLS[] = {CORE_REPOSITORY_URL, COMMUNITY_REPOSITORY_URL};
 	// strip the scheme: the official repositories are served over both http and https
 	string host_and_path;
 	if (StringUtil::StartsWith(url, "http://")) {
