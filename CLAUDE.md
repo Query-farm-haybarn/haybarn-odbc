@@ -146,7 +146,8 @@ trust-root swap works, verified 2026-08-20 against this fork's build.
 ## CI
 
 - `.github/workflows/ODBC.yml` — build/test matrix (Linux amd64/arm64,
-  Windows amd64, Windows arm64, macOS arm64, macOS amd64, Linux debug).
+  Windows amd64, Windows arm64, macOS arm64, Linux debug). Haybarn 2.0
+  drops macOS x86_64 (no macOS amd64 leg or zip; the 1.5 line keeps it).
   DuckDB-internal S3 staging Deploy steps, the vendoring-PR finalisation job
   and Azure Trusted Signing are removed (Haybarn defers Windows code signing,
   same as every other client fork). Branch pushes only build, test and upload
@@ -169,9 +170,9 @@ trust-root swap works, verified 2026-08-20 against this fork's build.
 x64 runner and runs no tests, so it is enabled here (on 1.5 it ran the test
 suite on `windows-11-arm` and was disabled). The extension gap behind that is
 still open for 2.0: `core/v2.0.0/` on `haybarn-extensions.query.farm` has
-linux_amd64, linux_arm64, osx_amd64, osx_arm64, windows_amd64,
-windows_amd64_mingw and wasm_{eh,mvp,threads}, but no `windows_arm64` (and no
-musl). The arm64 driver builds and loads, but `INSTALL` of a non-bundled
+linux_amd64, linux_arm64, osx_arm64, windows_amd64, windows_amd64_mingw
+and wasm_{eh,threads} (2.0 builds after rc5 drop osx_amd64 and wasm_mvp),
+but no `windows_arm64` (and no musl). The arm64 driver builds and loads, but `INSTALL` of a non-bundled
 extension 404s on that platform until the engine's core-extension build gains
 a `windows_arm64` leg.
 

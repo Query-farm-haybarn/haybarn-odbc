@@ -148,7 +148,6 @@ jobs:
           SHA256SUMS.asc
           haybarn_odbc-linux-amd64.zip
           haybarn_odbc-linux-arm64.zip
-          haybarn_odbc-macos-amd64.zip
           haybarn_odbc-macos-arm64.zip
           haybarn_odbc-windows-amd64.zip
           haybarn_odbc-windows-arm64.zip"
