@@ -149,8 +149,7 @@ jobs:
           haybarn_odbc-linux-amd64.zip
           haybarn_odbc-linux-arm64.zip
           haybarn_odbc-macos-arm64.zip
-          haybarn_odbc-windows-amd64.zip
-          haybarn_odbc-windows-arm64.zip"
+          haybarn_odbc-windows-amd64.zip"
           actual=$(cd release && find . -type f | sed 's|^\./||' | LC_ALL=C sort)
           diff <(printf '%s\n' "$expected" | sed 's/^ *//') <(printf '%s\n' "$actual")
           (cd release && sha256sum -c SHA256SUMS)
