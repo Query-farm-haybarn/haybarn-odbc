@@ -93,7 +93,7 @@ checkout other forks rely on:
 
 ```sh
 cd ~/Development/haybarn/haybarn-odbc-2.0
-TAG=haybarn-v2.0.0-rc6
+TAG=haybarn-v2.0.0-rc7
 TMP=$(mktemp -d)/haybarn-engine
 git -C ~/Development/haybarn/haybarn worktree add --detach "$TMP" "$TAG"
 rm -rf src/duckdb
@@ -161,7 +161,7 @@ trust-root swap works, verified 2026-08-20 against this fork's build.
   Dispatch defaults to `dry_run=true` (zips, SHA256SUMS, GPG signature and
   asset check, uploaded as a workflow artifact; no release), so run that
   first. Client release tags carry the engine's rc number: engine
-  `haybarn-v2.0.0-rc6` → `haybarn-v2.0.0.0-rc6` (a GitHub prerelease).
+  `haybarn-v2.0.0-rc7` → `haybarn-v2.0.0.0-rc7` (a GitHub prerelease).
   The release is created as a draft and published after every asset is
   attached (the org enforces immutable releases).
 - Release tags: `haybarn-v<MAJOR>.<MINOR>.<PATCH>.<BUILD>` (e.g.
