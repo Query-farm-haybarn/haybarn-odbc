@@ -426,6 +426,9 @@ jobs:
 
       - name: Install UnixODBC
         shell: bash
+        env:
+          # statically linked into the driver, must target the same minimum macOS version
+          MACOSX_DEPLOYMENT_TARGET: '11.0'
         run: |
           brew uninstall --ignore-dependencies unixodbc || true
           ./scripts/install_unixodbc.sh
@@ -452,15 +455,19 @@ jobs:
         run: |
           ! (nm ./build/release/libhaybarn_odbc.dylib | grep jemalloc) || exit 1
 
+      - name: Check architecture
+        shell: bash
+        run: test "$(lipo -archs build/release/libhaybarn_odbc.dylib)" = "arm64"
+
+      - name: Check minimum macOS version
+        shell: bash
+        run: otool -l build/release/libhaybarn_odbc.dylib | grep -A4 -E 'LC_BUILD_VERSION|LC_VERSION_MIN_MACOSX'
+
       - name: ODBC Tests
         if: ${{ inputs.skip_tests != 'true' }}
         shell: bash
         run: |
           ./build/release/test/test_odbc
-
-      - name: Check architecture
-        shell: bash
-        run: test "$(lipo -archs build/release/libhaybarn_odbc.dylib)" = "arm64"
 
       - name: Package
         run: |
