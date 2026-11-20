@@ -8,7 +8,7 @@ Guidance for Claude Code working in this repository.
 [Haybarn](https://github.com/Query-farm-haybarn/haybarn) — an independent
 derived distribution of DuckDB ("Haybarn, powered by DuckDB"), published by
 Query Farm LLC. This repo is a **hard fork** of `duckdb/duckdb-odbc`, based on
-upstream tag **`v2.0.0.0`** (branch `haybarn-2.0`; the 1.5 line stays on
+upstream tag **`v2.0.1.0`** (branch `haybarn-2.0`; the 1.5 line stays on
 `haybarn`) (duckdb-odbc's own 4-component
 `vMAJOR.MINOR.PATCH.BUILD` scheme — the first three mirror the DuckDB engine
 version, the 4th is an independent driver-only patch counter).
@@ -78,10 +78,10 @@ dropped on the next re-vendor.
 ### Regenerating the vendored source (after an engine bump)
 
 **`OVERRIDE_GIT_DESCRIBE` is mandatory.** Without it the 2.0 engine's
-`package_build.py` stamps `v2.0.0-devN` (from `scripts/ci/release_version.txt`
+`package_build.py` stamps `v2.0.1-devN` (from `scripts/ci/release_version.txt`
 plus a commit count). DuckDB's `ExtensionHelper::GetVersionDirectoryName()`
 then treats the build as a dev build and resolves extensions under the git
-source id instead of `v2.0.0`, which doesn't exist on
+source id instead of `v2.0.1`, which doesn't exist on
 `haybarn-extensions.query.farm`. In 2.0 the variable is taken verbatim (just
 `v`-prefixed), so pass the bare release version.
 
@@ -93,11 +93,11 @@ checkout other forks rely on:
 
 ```sh
 cd ~/Development/haybarn/haybarn-odbc-2.0
-TAG=haybarn-v2.0.0-rc5
+TAG=haybarn-v2.0.1-rc3
 TMP=$(mktemp -d)/haybarn-engine
 git -C ~/Development/haybarn/haybarn worktree add --detach "$TMP" "$TAG"
 rm -rf src/duckdb
-OVERRIDE_GIT_DESCRIBE=v2.0.0 python3 vendor.py --duckdb "$TMP"
+OVERRIDE_GIT_DESCRIBE=v2.0.1 python3 vendor.py --duckdb "$TMP"
 git -C ~/Development/haybarn/haybarn worktree remove "$TMP" --force
 ```
 
@@ -124,7 +124,7 @@ make release             # -> build/release/libhaybarn_odbc.dylib
 strings -a build/release/libhaybarn_odbc.dylib | grep haybarn-extensions.query.farm
 ```
 Then over a connection (`DSN=Haybarn`): `SELECT version();` should report a
-clean `v2.0.0` (a `-dev` string means the re-vendor step above
+clean `v2.0.1` (a `-dev` string means the re-vendor step above
 was skipped), and `INSTALL httpfs; LOAD httpfs;` (not one of the 4
 statically-bundled extensions) should succeed and resolve against
 `haybarn-extensions.query.farm`.
@@ -161,7 +161,7 @@ trust-root swap works, verified 2026-08-20 against this fork's build.
   Dispatch defaults to `dry_run=true` (zips, SHA256SUMS, GPG signature and
   asset check, uploaded as a workflow artifact; no release), so run that
   first. Client release tags carry the engine's rc number: engine
-  `haybarn-v2.0.0-rc5` → `haybarn-v2.0.0.0-rc5` (a GitHub prerelease).
+  `haybarn-v2.0.1-rc3` → `haybarn-v2.0.1.0-rc3` (a GitHub prerelease).
   The release is created as a draft and published after every asset is
   attached (the org enforces immutable releases).
 - Release tags: `haybarn-v<MAJOR>.<MINOR>.<PATCH>.<BUILD>` (e.g.
@@ -169,7 +169,7 @@ trust-root swap works, verified 2026-08-20 against this fork's build.
 
 **Windows arm64.** Not built on the 2.0 line for now (user decision,
 2026-10-23): upstream's 2.0 `Windows (aarch64)` cross-compile job is removed,
-and the release has 4 zips + SHA256SUMS + .asc (6 assets). `core/v2.0.0/` has no
+and the release has 4 zips + SHA256SUMS + .asc (6 assets). `core/v2.0.1/` has no
 `windows_arm64` extensions either.
 
 ## Related repos
