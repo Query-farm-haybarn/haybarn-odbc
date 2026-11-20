@@ -187,9 +187,11 @@ vector<string> ExtensionRepositoryManager::FetchPublicKeys(DatabaseInstance &db,
 		throw;
 	} catch (std::exception &ex) {
 		ErrorData error(ex);
-		throw IOException("Failed to read the metadata file of the extension repository from '%s': %s\nProvide the key "
-		                  "directly using `USING PUBLIC KEY '<key>'` if the repository does not serve it",
-		                  metadata_path, error.RawMessage());
+		throw IOException("Failed to read the metadata file of the extension repository from '%s': %s\nA repository "
+		                  "that serves Haybarn extensions publishes '%s' at its prefix (a repository that only serves "
+		                  "DuckDB builds does not). Provide the key directly using `USING PUBLIC KEY '<key>'` if the "
+		                  "repository serves Haybarn extensions without it",
+		                  metadata_path, error.RawMessage(), METADATA_FILE);
 	}
 	return ParsePublicKeys(contents, metadata_path);
 }
@@ -383,7 +385,7 @@ string ExtensionRepositoryManager::NormalizeRepositoryName(const string &name) {
 //===--------------------------------------------------------------------===//
 // Repositories resolved from their host: CREATE EXTENSION REPOSITORY <host> without a prefix
 //
-// The name is the publisher's host. The host serves `https://<host>/.well-known/duckdb-extension-repo.json`, the same
+// The name is the publisher's host. The host serves `https://<host>/<METADATA_FILE>` (Haybarn's file), the same
 // metadata file a prefix serves, and only its `{"version": 1, "repository_url": "<url>"}` is read: where the repository
 // is. From there on it is CREATE EXTENSION REPOSITORY <host> WITH PREFIX '<url>', keys fetched from the prefix and
 // pinned. The fetch over https from the host is what makes the file the host's own statement.
@@ -588,9 +590,8 @@ ExtensionRepositoryResolution ExtensionRepositoryManager::ResolveRepositoryFromH
 		ErrorData error(ex);
 		throw IOException(
 		    "Cannot create extension repository '%s': %s\nA repository is resolved from its host through "
-		    "https://<host>/.well-known/duckdb-extension-repo.json; use `WITH PREFIX '<url>'` to name the "
-		    "repository's location directly",
-		    name, error.RawMessage());
+		    "https://<host>/%s; use `WITH PREFIX '<url>'` to name the repository's location directly",
+		    name, error.RawMessage(), METADATA_FILE);
 	}
 	RepositoryJSONDocument document(yyjson_read(contents.c_str(), contents.size(), 0));
 	auto root = ReadVersionedObject(document, metadata_path);
@@ -618,7 +619,9 @@ ExtensionRepositoryResolution ExtensionRepositoryManager::ResolveRepositoryFromH
 string ExtensionRepositoryManager::GetRepositoryDirectory(DatabaseInstance &db, FileSystem &fs) {
 	auto directory = Settings::Get<ExtensionRepositoryDirectorySetting>(db);
 	if (directory.empty()) {
-		directory = fs.JoinPath(fs.JoinPath(fs.GetHomeDirectory(), ".duckdb"), "extension_repositories");
+		// Haybarn: a trust store of its own, next to ~/.haybarn/extensions. A repository created in DuckDB points at
+		// DuckDB builds, so it must not be picked up by Haybarn (and the other way around)
+		directory = fs.JoinPath(fs.JoinPath(fs.GetHomeDirectory(), ".haybarn"), "extension_repositories");
 	}
 	return fs.ExpandPath(fs.ConvertSeparators(directory));
 }

@@ -1714,6 +1714,7 @@ static constexpr ExtensionEntry EXTENSION_LOG_TYPES[] = {
     {"Quack", "quack"},
 }; // END_OF_EXTENSION_LOG_TYPES
 
+// Haybarn: motherduck is not advertised as an autoloadable extension.
 static constexpr const char *AUTOLOADABLE_EXTENSIONS[] = {"autocomplete",
                                                           "avro",
                                                           "aws",
@@ -1731,7 +1732,6 @@ static constexpr const char *AUTOLOADABLE_EXTENSIONS[] = {"autocomplete",
                                                           "inet",
                                                           "json",
                                                           "legacy_parser",
-                                                          "motherduck",
                                                           "mysql_scanner",
                                                           "odbc_scanner",
                                                           "parquet",

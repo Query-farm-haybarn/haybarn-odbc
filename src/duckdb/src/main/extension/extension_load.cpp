@@ -6,6 +6,7 @@
 #include "duckdb/main/capi/extension_api.hpp"
 #include "duckdb/main/capi_v2/extension_load_v2.hpp"
 #include "duckdb/main/error_manager.hpp"
+#include "duckdb/main/extension_discovery.hpp"
 #include "duckdb/main/extension/external_extension_provider.hpp"
 #include "duckdb/main/extension/linked_extension_registry.hpp"
 #include "duckdb/main/extension_helper.hpp"
@@ -413,7 +414,7 @@ ParsedExtensionMetaData ExtensionHelper::ParseExtensionMetaData(FileHandle &hand
 
 	if (handle.GetFileSize() < ParsedExtensionMetaData::FOOTER_SIZE) {
 		throw InvalidInputException(
-		    "File '%s' is not a DuckDB extension. Valid DuckDB extensions must be at least %llu bytes", handle.path,
+		    "File '%s' is not a valid Haybarn extension. Valid extensions must be at least %llu bytes", handle.path,
 		    ParsedExtensionMetaData::FOOTER_SIZE);
 	}
 
@@ -472,6 +473,17 @@ bool ExtensionHelper::CheckExtensionBufferSignature(DatabaseInstance &db, const 
 	const string resulting_hash = ComputeFinalHash(hash_chunks);
 
 	return CheckKnownSignatures(db, resulting_hash, signature, repository_type, repository_name,
+	                            signature_key_fingerprint);
+}
+
+bool ExtensionHelper::CheckExtensionHashSignature(DatabaseInstance &db, const string &two_level_hash,
+                                                  const string &signature, ExtensionRepositoryType repository_type,
+                                                  const string &repository_name,
+                                                  optional_ptr<string> signature_key_fingerprint) {
+	if (two_level_hash.size() != duckdb_mbedtls::MbedTlsWrapper::SHA256_HASH_LENGTH_BYTES) {
+		return false;
+	}
+	return CheckKnownSignatures(db, two_level_hash, signature, repository_type, repository_name,
 	                            signature_key_fingerprint);
 }
 
@@ -623,18 +635,29 @@ bool ExtensionHelper::TryInitialLoad(DatabaseInstance &db, FileSystem &fs, const
 			}
 		}
 
-		// If not found in any directory, use the first directory for error reporting
+		// If not found in any local extension directory, try resolving an
+		// extension that npm installed into node_modules and load it in place
+		// (no network, no cache write; independent of autoinstall_known_extensions).
+		// Signature verification below still gates the load.
 		if (!found) {
-			filename = ComputeLocalExtensionPath(search_directories[0], extension_name, user_repository);
-			if (repository_name.empty()) {
-				installed_in_repositories = FindUserRepositoryInstalls(db, fs, [&](const string &repository) {
-					for (const auto &directory : search_directories) {
-						if (fs.FileExists(ComputeLocalExtensionPath(directory, extension_name, repository))) {
-							return true;
+			// npm packages carry builds of the default repositories, not of a user-provided one
+			string npm_path = user_repository.empty() ? TryDiscoverNpmExtension(db, fs, extension) : string();
+			if (!npm_path.empty()) {
+				filename = npm_path;
+				direct_load = true;
+			} else if (!search_directories.empty()) {
+				// use the first directory for error reporting
+				filename = ComputeLocalExtensionPath(search_directories[0], extension_name, user_repository);
+				if (repository_name.empty()) {
+					installed_in_repositories = FindUserRepositoryInstalls(db, fs, [&](const string &repository) {
+						for (const auto &directory : search_directories) {
+							if (fs.FileExists(ComputeLocalExtensionPath(directory, extension_name, repository))) {
+								return true;
+							}
 						}
-					}
-					return false;
-				});
+						return false;
+					});
+				}
 			}
 		}
 #endif
@@ -644,7 +667,7 @@ bool ExtensionHelper::TryInitialLoad(DatabaseInstance &db, FileSystem &fs, const
 	}
 	if (!StringUtil::EndsWith(filename, ".duckdb_extension")) {
 		throw PermissionException(
-		    "DuckDB extensions are files ending with '.duckdb_extension', loading different "
+		    "Haybarn extensions are files ending with '.duckdb_extension', loading different "
 		    "files is not possible, error while loading from '%s', consider 'INSTALL <path>; LOAD <name>;'",
 		    filename);
 	}

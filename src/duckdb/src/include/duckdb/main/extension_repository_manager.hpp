@@ -18,7 +18,7 @@ class DatabaseInstance;
 class FileSystem;
 
 //! Manages the trusted extension repositories of a DuckDB installation. Trusted repositories are stored as json files
-//! in the extension repository directory (by default `~/.duckdb/extension_repositories`). Every repository has a
+//! in the extension repository directory (by default `~/.haybarn/extension_repositories`). Every repository has a
 //! locally unique name, a url prefix from which extensions are downloaded and one or more public keys that are trusted
 //! to sign the extensions that are served by the repository. The keys of a trusted repository are only trusted for the
 //! extensions that are installed from that repository.
@@ -42,7 +42,10 @@ public:
 	//! The metadata file: `{"version": 1, "repository_url": "<url>", "signature_keys": [...]}`. Served under a prefix
 	//! it carries the keys WITH PREFIX pins. Served by a publisher's host (CREATE EXTENSION REPOSITORY <host>) only its
 	//! url is read: it names the prefix. A repository whose prefix is its host serves one file for both
-	static constexpr const char *METADATA_FILE = ".well-known/duckdb-extension-repo.json";
+	//! Haybarn: a Haybarn-specific file rather than DuckDB's `.well-known/duckdb-extension-repo.json`, with the same
+	//! format. A publisher serves both, and each engine reads its own, so the same CREATE EXTENSION REPOSITORY works in
+	//! both while Haybarn is pointed at Haybarn builds (DuckDB builds do not run in Haybarn, and vice versa)
+	static constexpr const char *METADATA_FILE = ".well-known/haybarn-extension-repo.json";
 
 public:
 	//! The directory in which the trusted extension repositories are stored

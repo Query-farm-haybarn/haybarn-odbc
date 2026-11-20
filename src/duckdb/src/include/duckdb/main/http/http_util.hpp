@@ -14,8 +14,10 @@
 #include "duckdb/common/enums/http_status_code.hpp"
 #include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/common/time_point.hpp"
+#include "duckdb/common/atomic.hpp"
 #include "duckdb/common/mutex.hpp"
 #include "duckdb/common/unordered_map.hpp"
+#include "duckdb/common/shared_ptr.hpp"
 #include "duckdb/main/http/http_retry_budget.hpp"
 #include <functional>
 
@@ -23,6 +25,7 @@ namespace duckdb {
 class DatabaseInstance;
 class Logger;
 class HTTPUtil;
+class ClientContext;
 class HTTPRetryBudget;
 class HTTPTransportManager;
 class HTTPTransportManagerState;
@@ -33,6 +36,9 @@ struct HTTPParams {
 	explicit HTTPParams(HTTPUtil &http_util) : http_util(http_util) {
 	}
 	virtual ~HTTPParams();
+	//! Copy parameters for one request without mutating shared provider state. Providers with
+	//! derived parameter classes override this to preserve their fields and transport identity.
+	DUCKDB_API virtual unique_ptr<HTTPParams> Clone() const;
 
 	static constexpr uint64_t DEFAULT_TIMEOUT_SECONDS = 30; // 30 sec
 	static constexpr uint64_t DEFAULT_RETRIES = 3;
@@ -67,9 +73,15 @@ struct HTTPParams {
 	unordered_map<string, string> extra_headers;
 	HTTPUtil &http_util;
 	shared_ptr<Logger> logger;
+	//! The client context the parameters were initialized for: interrupting its query cancels the requests made
+	//! with them. Weak, so parameters that outlive the connection never touch a destroyed context; empty for
+	//! database-level openers.
+	weak_ptr<ClientContext> interrupt_context;
 
 public:
 	void Initialize(optional_ptr<FileOpener> opener);
+	//! Whether the query of interrupt_context was interrupted. Safe to call from any thread.
+	DUCKDB_API bool IsInterrupted() const;
 	DUCKDB_API idx_t GetTransportReuseDomain() const;
 	//! Require server certificate verification for the requests made with these parameters, whatever the settings and
 	//! secrets they were initialized from said. The provider recaptures its connection-reuse domain from the new values
@@ -191,6 +203,8 @@ struct HTTPResponse {
 	string reason;
 	HTTPHeaders headers;
 	bool success = true;
+	//! A flag-aborted response is terminal and must never be retried.
+	bool cancelled = false;
 
 public:
 	bool HasHeader(const string &key) const;
@@ -201,6 +215,9 @@ public:
 	bool HasRequestError() const;
 	const string &GetRequestError() const;
 	const string &GetError() const;
+	bool IsCancelled() const {
+		return cancelled;
+	}
 
 	bool ShouldRetry() const;
 };
@@ -222,6 +239,10 @@ struct BaseRequest {
 	bool try_request = false;
 	//! Borrowed operation-local budget; it must outlive all participating requests.
 	optional_ptr<HTTPRetryBudget> retry_budget;
+	//! Caller-owned flag, polled by the backend for every HTTP method. It must outlive Request(),
+	//! including any cross-thread curl dispatcher access. Cancellation is cooperative. Backends check it together
+	//! with the interrupt of params.interrupt_context through HTTPUtil::CancellationRequested.
+	optional_ptr<const atomic<bool>> cancellation;
 
 	//! Requests will optionally contain their timings
 	bool have_request_timing = false;
@@ -427,6 +448,14 @@ public:
 
 	//! Whether replaying this request is safe. POST is the only method we cannot assume is idempotent.
 	DUCKDB_API static bool IsIdempotent(RequestType type);
+
+	//! Whether a request should be abandoned: its caller-owned cancellation flag is set, or the query of the client
+	//! context its parameters were initialized for was interrupted. Backends poll it during a transfer, possibly from
+	//! another thread, and report an abandoned transfer as a cancelled response; the retry loop checks it between
+	//! attempts and during the back-off.
+	DUCKDB_API static bool CancellationRequested(const BaseRequest &request);
+	//! Whether any cancellation source is attached to the request, so a backend can skip arming its transfer hook.
+	DUCKDB_API static bool CancellationArmed(const BaseRequest &request);
 
 	static void ParseHTTPProxyHost(string &proxy_value, string &hostname_out, idx_t &port_out, idx_t default_port = 80);
 	static void DecomposeURL(const string &url, string &path_out, string &proto_host_port_out);
